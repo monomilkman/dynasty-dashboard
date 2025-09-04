@@ -121,33 +121,36 @@ export default function Leaderboard({ teams }: LeaderboardProps) {
                   {getSortIcon('startersPoints')}
                 </Button>
               </TableHead>
-              <TableHead className="text-right min-w-[80px] hidden sm:table-cell">
+              <TableHead className="text-right min-w-[80px]">
                 <Button
                   variant="ghost"
                   onClick={() => handleSort('benchPoints')}
                   className="h-auto p-0 font-semibold"
                 >
-                  Bench
+                  <span className="hidden sm:inline">Bench</span>
+                  <span className="sm:hidden">Bch</span>
                   {getSortIcon('benchPoints')}
                 </Button>
               </TableHead>
-              <TableHead className="text-right min-w-[80px] hidden lg:table-cell">
+              <TableHead className="text-right min-w-[80px]">
                 <Button
                   variant="ghost"
                   onClick={() => handleSort('offensePoints')}
                   className="h-auto p-0 font-semibold"
                 >
-                  Offense
+                  <span className="hidden sm:inline">Offense</span>
+                  <span className="sm:hidden">Off</span>
                   {getSortIcon('offensePoints')}
                 </Button>
               </TableHead>
-              <TableHead className="text-right min-w-[80px] hidden lg:table-cell">
+              <TableHead className="text-right min-w-[80px]">
                 <Button
                   variant="ghost"
                   onClick={() => handleSort('defensePoints')}
                   className="h-auto p-0 font-semibold"
                 >
-                  Defense
+                  <span className="hidden sm:inline">Defense</span>
+                  <span className="sm:hidden">Def</span>
                   {getSortIcon('defensePoints')}
                 </Button>
               </TableHead>
@@ -161,14 +164,14 @@ export default function Leaderboard({ teams }: LeaderboardProps) {
                   {getSortIcon('totalPoints')}
                 </Button>
               </TableHead>
-              <TableHead className="text-right min-w-[80px] hidden md:table-cell">
+              <TableHead className="text-right min-w-[80px]">
                 <Button
                   variant="ghost"
                   onClick={() => handleSort('potentialPoints')}
                   className="h-auto p-0 font-semibold"
                 >
-                  <span className="hidden lg:inline">Potential</span>
-                  <span className="lg:hidden">Pot</span>
+                  <span className="hidden sm:inline">Potential</span>
+                  <span className="sm:hidden">Pot</span>
                   {getSortIcon('potentialPoints')}
                 </Button>
               </TableHead>
@@ -186,13 +189,18 @@ export default function Leaderboard({ teams }: LeaderboardProps) {
                 <TableRow key={team.id}>
                   <TableCell className="font-medium sticky left-0 bg-background">{index + 1}</TableCell>
                   <TableCell className="hidden md:table-cell">{team.year}</TableCell>
-                  <TableCell className="font-medium sticky left-16 bg-background md:static md:bg-transparent">{team.manager}</TableCell>
+                  <TableCell className="font-medium sticky left-16 bg-background md:static md:bg-transparent">
+                    <div>
+                      <div className="font-medium">{team.manager}</div>
+                      <div className="text-sm text-muted-foreground">{team.teamName}</div>
+                    </div>
+                  </TableCell>
                   <TableCell className="text-right">{formatPoints(team.startersPoints)}</TableCell>
-                  <TableCell className="text-right hidden sm:table-cell">{formatPoints(team.benchPoints)}</TableCell>
-                  <TableCell className="text-right hidden lg:table-cell">{formatPoints(team.offensePoints)}</TableCell>
-                  <TableCell className="text-right hidden lg:table-cell">{formatPoints(team.defensePoints)}</TableCell>
+                  <TableCell className="text-right text-muted-foreground">{team.benchPoints > 0 ? formatPoints(team.benchPoints) : '-'}</TableCell>
+                  <TableCell className="text-right">{formatPoints(team.offensePoints)}</TableCell>
+                  <TableCell className="text-right text-muted-foreground">{team.defensePoints > 0 ? formatPoints(team.defensePoints) : '-'}</TableCell>
                   <TableCell className="text-right font-semibold">{formatPoints(team.totalPoints)}</TableCell>
-                  <TableCell className="text-right hidden md:table-cell">{formatPoints(team.potentialPoints)}</TableCell>
+                  <TableCell className="text-right text-muted-foreground">{team.potentialPoints > 0 ? formatPoints(team.potentialPoints) : '-'}</TableCell>
                 </TableRow>
               ))
             )}

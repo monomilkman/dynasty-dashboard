@@ -12,7 +12,14 @@
       "Bash(npm run build:*)",
       "Read(/C:\\Users\\Ryan\\Desktop\\Cursor Web Apps\\MLF App\\mlf-app/**)",
       "Bash(npm uninstall:*)",
-      "Read(/C:\\Users\\Ryan\\Desktop\\Cursor Web Apps\\MLF App\\mlf-app\\app/**)"
+      "Read(/C:\\Users\\Ryan\\Desktop\\Cursor Web Apps\\MLF App\\mlf-app\\app/**)",
+      "Read(/C:\\Users\\Ryan\\Desktop\\Cursor Web Apps\\MLF App\\mlf-app/**)",
+      "Bash(npm run dev:*)",
+      "Read(/C:\\Users\\Ryan\\Desktop\\Cursor Web Apps\\MLF App\\mlf-app\\app\\api\\mfl/**)",
+      "Read(/C:\\Users\\Ryan\\Desktop\\Cursor Web Apps\\MLF App\\mlf-app\\app\\components/**)",
+      "Read(/C:\\Users\\Ryan\\Desktop\\Cursor Web Apps\\MLF App\\mlf-app\\app\\components/**)",
+      "Bash(curl:*)",
+      "Read(/C:\\Users\\Ryan\\Desktop\\Cursor Web Apps\\MLF App\\mlf-app\\app\\api\\mfl/**)"
     ],
     "deny": [],
     "ask": []
