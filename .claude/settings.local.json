@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app:*)",
+      "Read(/C:\\Users\\Ryan\\Desktop\\Cursor Web Apps\\MLF App\\mlf-app/**)",
+      "Bash(npx shadcn:*)",
+      "Bash(npm install:*)",
+      "Read(/C:\\Users\\Ryan\\Desktop\\Cursor Web Apps\\MLF App\\mlf-app\\app/**)",
+      "Read(/C:\\Users\\Ryan\\Desktop\\Cursor Web Apps\\MLF App\\mlf-app\\app/**)",
+      "Read(/C:\\Users\\Ryan\\Desktop\\Cursor Web Apps\\MLF App\\mlf-app\\app/**)",
+      "Read(/C:\\Users\\Ryan\\Desktop\\Cursor Web Apps\\MLF App\\mlf-app/**)",
+      "Bash(npm run build:*)",
+      "Read(/C:\\Users\\Ryan\\Desktop\\Cursor Web Apps\\MLF App\\mlf-app/**)",
+      "Bash(npm uninstall:*)",
+      "Read(/C:\\Users\\Ryan\\Desktop\\Cursor Web Apps\\MLF App\\mlf-app\\app/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
