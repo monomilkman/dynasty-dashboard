@@ -91,34 +91,36 @@ export function normalizeTeamData(mflData: MFLStandingsResponse, year: number): 
 
   // Handle combined structure (standings + league + detailedScoring)
   if (mflData.standings && mflData.league) {
-    const standingsData = mflData.standings as any
-    const franchiseData = standingsData.leagueStandings?.franchise || standingsData.league?.standings?.franchise || []
+    const standingsData = mflData.standings as Record<string, unknown>
+    const franchiseData = (standingsData.leagueStandings as Record<string, unknown>)?.franchise as unknown[] || ((standingsData.league as Record<string, unknown>)?.standings as Record<string, unknown>)?.franchise as unknown[] || []
     
     // Get league info for franchise names
-    const leagueInfo = mflData.league as any
-    const franchiseInfo = leagueInfo?.league?.franchises?.franchise || []
+    const leagueInfo = mflData.league as Record<string, unknown>
+    const franchiseInfo = ((leagueInfo?.league as Record<string, unknown>)?.franchises as Record<string, unknown>)?.franchise as unknown[] || []
     
     // Get detailed scoring data if available
-    const detailedScoring = (mflData as any).detailedScoring || []
+    const detailedScoring = (mflData as Record<string, unknown>).detailedScoring as unknown[] || []
     
     console.log(`Combined API: Found ${franchiseData.length} franchises in standings, ${franchiseInfo.length} in league info, ${detailedScoring.length} detailed scoring`)
     
     // Create lookup for franchise names  
     const franchiseNames: { [key: string]: string } = {}
     if (Array.isArray(franchiseInfo)) {
-      franchiseInfo.forEach((franchise: any) => {
-        if (franchise.id) {
-          franchiseNames[franchise.id] = franchise.name || `Team ${franchise.id}`
+      franchiseInfo.forEach((franchise: unknown) => {
+        const f = franchise as Record<string, unknown>
+        if (f.id) {
+          franchiseNames[f.id as string] = (f.name as string) || `Team ${f.id}`
         }
       })
     }
     
     // Create lookup for detailed scoring data
-    const detailedScoringLookup: { [key: string]: any } = {}
+    const detailedScoringLookup: { [key: string]: Record<string, unknown> } = {}
     if (Array.isArray(detailedScoring)) {
-      detailedScoring.forEach((team: any) => {
-        if (team.franchiseId) {
-          detailedScoringLookup[team.franchiseId] = team
+      detailedScoring.forEach((team: unknown) => {
+        const t = team as Record<string, unknown>
+        if (t.franchiseId as string) {
+          detailedScoringLookup[t.franchiseId as string] = t
         }
       })
     }
@@ -131,12 +133,13 @@ export function normalizeTeamData(mflData: MFLStandingsResponse, year: number): 
       console.log(`Sample league data:`, JSON.stringify(franchiseInfo[0], null, 2))
     }
     
-    return franchiseData.map((franchise: any, index: number) => {
-      const franchiseId = franchise.id || `unknown_${index}`
+    return franchiseData.map((franchise: unknown, index: number) => {
+      const f = franchise as Record<string, unknown>
+      const franchiseId = (f.id as string) || `unknown_${index}`
       
       // Get API data
-      const totalPointsFromAPI = parseFloat(franchise.pf || '0') || 0
-      const potentialPointsFromAPI = parseFloat(franchise.pp || franchise.maxpf || '0') || 0
+      const totalPointsFromAPI = parseFloat((f.pf as string) || '0') || 0
+      const potentialPointsFromAPI = parseFloat((f.pp as string) || (f.maxpf as string) || '0') || 0
       
       // Get detailed scoring data if available from scraping
       const detailedData = detailedScoringLookup[franchiseId]
@@ -181,12 +184,12 @@ export function normalizeTeamData(mflData: MFLStandingsResponse, year: number): 
       }
       
       return team
-    }).filter(team => team !== null)
+    }).filter((team): team is Team => team !== null) as Team[]
   }
   
   // Handle direct standings response (fallback)
   console.log('Using direct API response structure')
-  const franchiseData = (mflData as any).leagueStandings?.franchise || (mflData as any).league?.standings?.franchise || []
+  const franchiseData = ((mflData as Record<string, unknown>).leagueStandings as Record<string, unknown>)?.franchise as unknown[] || (((mflData as Record<string, unknown>).league as Record<string, unknown>)?.standings as Record<string, unknown>)?.franchise as unknown[] || []
   
   if (!Array.isArray(franchiseData)) {
     console.error('Franchise data is not an array:', franchiseData)
@@ -195,14 +198,15 @@ export function normalizeTeamData(mflData: MFLStandingsResponse, year: number): 
   
   console.log(`Direct API: Found ${franchiseData.length} franchises`)
 
-  return franchiseData.map((franchise: any, index: number) => {
+  return franchiseData.map((franchise: unknown, index: number) => {
+    const f = franchise as Record<string, unknown>
     if (index === 0) {
-      console.log(`Sample direct franchise data:`, JSON.stringify(franchise, null, 2))
+      console.log(`Sample direct franchise data:`, JSON.stringify(f, null, 2))
     }
 
-    const franchiseId = franchise.id || `unknown_${index}`
-    const totalPoints = parseFloat(franchise.pf || '0') || 0
-    const potentialPoints = parseFloat(franchise.pp || franchise.maxpf || '0') || 0
+    const franchiseId = (f.id as string) || `unknown_${index}`
+    const totalPoints = parseFloat((f.pf as string) || '0') || 0
+    const potentialPoints = parseFloat((f.pp as string) || (f.maxpf as string) || '0') || 0
 
     const team = {
       id: franchiseId,
@@ -222,5 +226,5 @@ export function normalizeTeamData(mflData: MFLStandingsResponse, year: number): 
     }
     
     return team
-  }).filter((team: any) => team !== null)
+  }).filter((team): team is Team => team !== null) as Team[]
 }

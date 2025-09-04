@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     
     // Fetch detailed scoring data via web scraping
     console.log('Fetching detailed scoring data via web scraping...')
-    let detailedScoring: any[] = []
+    let detailedScoring: unknown[] = []
     
     try {
       detailedScoring = await scrapeDetailedScoring(leagueId, parseInt(year))
@@ -76,8 +76,8 @@ export async function GET(request: NextRequest) {
     }
     
     // Debug logging for API responses
-    console.log('Standings API response structure:', Object.keys(standingsData as any))
-    console.log('League API response structure:', Object.keys(leagueData as any))
+    console.log('Standings API response structure:', Object.keys(standingsData as object))
+    console.log('League API response structure:', Object.keys(leagueData as object))
     
     // Combine the data
     const data = {

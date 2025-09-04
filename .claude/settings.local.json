@@ -19,7 +19,10 @@
       "Read(/C:\\Users\\Ryan\\Desktop\\Cursor Web Apps\\MLF App\\mlf-app\\app\\components/**)",
       "Read(/C:\\Users\\Ryan\\Desktop\\Cursor Web Apps\\MLF App\\mlf-app\\app\\components/**)",
       "Bash(curl:*)",
-      "Read(/C:\\Users\\Ryan\\Desktop\\Cursor Web Apps\\MLF App\\mlf-app\\app\\api\\mfl/**)"
+      "Read(/C:\\Users\\Ryan\\Desktop\\Cursor Web Apps\\MLF App\\mlf-app\\app\\api\\mfl/**)",
+      "Read(/C:\\Users\\Ryan\\Desktop\\Cursor Web Apps\\MLF App\\mlf-app\\lib/**)",
+      "Read(/C:\\Users\\Ryan\\Desktop\\Cursor Web Apps\\MLF App\\mlf-app\\lib/**)",
+      "Read(/C:\\Users\\Ryan\\Desktop\\Cursor Web Apps\\MLF App\\mlf-app\\lib/**)"
     ],
     "deny": [],
     "ask": []

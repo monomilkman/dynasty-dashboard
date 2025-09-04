@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     const html = await response.text()
     const $ = cheerio.load(html)
     
-    const results: any = {}
+    const results: Record<string, unknown> = {}
     
     // Find all rows that contain scoring summary
     $('td, th').each((i, cell) => {
