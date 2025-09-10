@@ -104,10 +104,10 @@ async function aggregateWeeklyData(year: string, leagueId: string, weeks: number
       const weeklyUrl = `${baseUrl}/${year}/export?TYPE=weeklyResults&L=${leagueId}&W=${week}&JSON=1`
       const weeklyData = await fetchWithRetry(weeklyUrl, { headers })
       
-      if (weeklyData?.weeklyResults?.matchup) {
-        const matchups = Array.isArray(weeklyData.weeklyResults.matchup) 
-          ? weeklyData.weeklyResults.matchup 
-          : [weeklyData.weeklyResults.matchup]
+      if ((weeklyData as any)?.weeklyResults?.matchup) {
+        const matchups = Array.isArray((weeklyData as any).weeklyResults.matchup) 
+          ? (weeklyData as any).weeklyResults.matchup 
+          : [(weeklyData as any).weeklyResults.matchup]
         
         // Process each matchup
         for (const matchup of matchups) {

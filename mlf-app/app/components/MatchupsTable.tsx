@@ -306,7 +306,7 @@ export default function MatchupsTable({ teams, selectedWeeks }: MatchupsTablePro
               const totalGames = team.wins + team.losses + team.ties
               return (
                 <tr 
-                  key={`${team.id}-${team.year}`} 
+                  key={`${team.franchiseId}-${team.year}`} 
                   className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   <td className="px-4 py-3 whitespace-nowrap">

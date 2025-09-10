@@ -301,8 +301,8 @@ export async function fetchLineupRequirements(
     const leagueUrl = `${baseUrl}/${year}/export?TYPE=league&L=${leagueId}&JSON=1`
     const response = await fetchWithRetry(leagueUrl, { headers })
     
-    if (response?.league?.starters) {
-      return parseLineupRequirements(response.league.starters)
+    if ((response as any)?.league?.starters) {
+      return parseLineupRequirements((response as any).league.starters)
     }
     
     console.warn(`No lineup requirements found for ${year}, using defaults`)

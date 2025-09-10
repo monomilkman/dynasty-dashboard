@@ -31,8 +31,8 @@ export async function fetchMFLLeagueConfig(
     
     const response = await fetchWithRetry(leagueUrl, { headers })
     
-    if (response?.league) {
-      const league = response.league
+    if ((response as any)?.league) {
+      const league = (response as any).league
       
       // Extract season structure information
       const config: MFLLeagueConfig = {}
