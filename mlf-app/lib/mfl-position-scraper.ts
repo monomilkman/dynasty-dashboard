@@ -513,7 +513,7 @@ export async function scrapeLeaguePositionalData(
     teams,
     leagueSettings: {
       year,
-      rosterRequirements: ROSTER_REQUIREMENTS[year] || ROSTER_REQUIREMENTS[2024]
+      rosterRequirements: (ROSTER_REQUIREMENTS as any)[year] || ROSTER_REQUIREMENTS[2024]
     },
     positionRankings
   }

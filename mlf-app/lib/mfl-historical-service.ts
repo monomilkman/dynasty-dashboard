@@ -98,9 +98,9 @@ export async function fetchHistoricalSeasonData(
       })
     }
     
-    console.log(`Processing ${ytdResponse.weeklyResults.length} weeks of YTD data`)
+    console.log(`Processing ${ytdResponse.weeklyResults.matchup?.length || 0} weeks of YTD data`)
     
-    return parseYTDData(ytdResponse.weeklyResults as YTDWeekData[], playerPositions)
+    return parseYTDData(ytdResponse.weeklyResults as any, playerPositions)
     
   } catch (error) {
     console.error(`Error fetching historical data for ${year}:`, error)

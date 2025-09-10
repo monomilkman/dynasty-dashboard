@@ -163,7 +163,7 @@ export async function fetchAllWeeklyResults(year: number, leagueId: string): Pro
         ? weekData.weeklyResults.matchup  // Regular season: array of matchups
         : [weekData.weeklyResults.matchup] // Single matchup object
       
-      matchups.forEach(matchup => {
+      matchups.forEach((matchup: any) => {
         // Handle case where matchup might be the franchise container directly
         const franchises = matchup.franchise || [matchup]
         franchisesToProcess.push(...franchises)
@@ -182,11 +182,11 @@ export async function fetchAllWeeklyResults(year: number, leagueId: string): Pro
         return
       }
       
-      const starterIds = franchise.starters.split(',').filter(id => id.trim())
+      const starterIds = franchise.starters.split(',').filter((id: any) => id.trim())
       
-      const starterData = starterIds.map(playerId => {
-        const playerInfo = franchise.player.find(p => p.id === playerId)
-        const mapping = playerMappings.find(m => m.id === playerId)
+      const starterData = starterIds.map((playerId: any) => {
+        const playerInfo = franchise.player.find((p: any) => p.id === playerId)
+        const mapping = playerMappings.find((m: any) => m.id === playerId)
         
         return {
           id: playerId,

@@ -50,7 +50,7 @@ export async function fetchMFLLeagueConfig(
       // Look for head-to-head weeks array
       if (league.h2hWeeks) {
         config.h2hWeeks = Array.isArray(league.h2hWeeks) 
-          ? league.h2hWeeks.map(w => parseInt(w))
+          ? league.h2hWeeks.map((w: any) => parseInt(w))
           : [parseInt(league.h2hWeeks)]
       }
       
