@@ -1,49 +1,31 @@
-# Owner Name Configuration
+# Owner Name Configuration ✅ COMPLETE
 
-Since the MyFantasyLeague API doesn't provide owner names for this league, you need to manually update the owner mappings in the configuration file.
+The owner mappings have been fully configured in `lib/owner-mappings.ts` with historical data from 2021-2024.
 
-## How to Update Owner Names
+## Configuration Status
 
-1. Open the file: `lib/owner-mappings.ts`
+### ✅ 2024 Season (12 teams) - COMPLETE
+All 12 franchise owners are mapped with real names
 
-2. Replace the placeholder names with actual owner names:
+### ✅ 2023 Season (16 teams) - COMPLETE  
+All 16 franchise owners are mapped with real names
 
-```typescript
-export const OWNER_MAPPINGS_2024: OwnerMapping = {
-  '0001': 'John Smith',        // Brock 'Em Sock 'Em Robots
-  '0002': 'Jane Doe',          // Lawrence's Tailor
-  '0003': 'Mike Johnson',      // Latveria Doom  
-  '0004': 'Sarah Wilson',      // Running Up that Hill
-  '0005': 'Chris Brown',       // Bijan Mustard
-  '0006': 'Alex Davis',        // CryBabyMahomes
-  '0007': 'Emily Taylor',      // MAXXimum WATTage
-  '0008': 'David Miller',      // Errant Venture
-  '0009': 'Lisa Garcia',       // Monday Night Ra
-  '0010': 'Tom Anderson',      // DJ Moore Touchdowns
-  '0011': 'Maria Rodriguez',   // Boston Strong
-  '0012': 'James Wilson',      // Jesus Christ that's Kendrick Bourne!
-}
-```
+### ✅ 2022 Season (16 teams) - COMPLETE
+All 16 franchise owners are mapped with real names
 
-## Finding Franchise IDs
+### ✅ 2021 Season (16 teams) - COMPLETE
+All 16 franchise owners are mapped with real names
 
-You can find the franchise IDs by:
+## League History Notes
 
-1. Looking at the current leaderboard - the IDs are visible in the browser developer tools
-2. Checking the MFL league page at: https://www45.myfantasyleague.com/2024/options?L=46221&O=07
-3. Using the API response to see team names and match them to franchise IDs
+- **2021-2023**: 16-team league
+- **2024**: Downsized to 12-team league (franchises 0013-0016 no longer active)
 
-## Adding Owner Names for Other Years
+## How It Works
 
-If you want accurate owner names for previous years (2023, 2022, etc.), update those mappings as well:
+Since the MyFantasyLeague API doesn't provide owner names for this league, the app uses manual mappings in `lib/owner-mappings.ts`. The `getOwnerName()` function automatically selects the correct mapping based on the year.
 
-```typescript
-export const OWNER_MAPPINGS_2023: OwnerMapping = {
-  '0001': 'Previous Owner 1', // May be different from 2024
-  '0002': 'Previous Owner 2',
-  // ... etc
-}
-```
+All historical team names and owner changes have been preserved, so the app will display accurate information for any year.
 
 ## Current Status
 

@@ -2,40 +2,37 @@
 
 import { useState, useMemo } from 'react'
 import { Team } from '@/lib/mfl'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react'
+import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { formatTeamDisplay, getUniqueYears } from '@/lib/team-utils'
+import { formatPoints, formatEfficiency } from '@/lib/utils'
 
 interface LeaderboardProps {
   teams: Team[]
+  selectedWeeks?: number[]
 }
 
-type SortField = keyof Pick<Team, 'manager' | 'teamName' | 'startersPoints' | 'benchPoints' | 'offensePoints' | 'defensePoints' | 'totalPoints' | 'potentialPoints'>
+type SortField = keyof Pick<Team, 'manager' | 'teamName' | 'startersPoints' | 'benchPoints' | 'offensePoints' | 'defensePoints' | 'totalPoints' | 'potentialPoints'> | 'efficiency'
 type SortDirection = 'asc' | 'desc' | null
 
-export default function Leaderboard({ teams }: LeaderboardProps) {
+export default function Leaderboard({ teams, selectedWeeks = [] }: LeaderboardProps) {
   const [sortField, setSortField] = useState<SortField>('totalPoints')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
-  const [searchTerm, setSearchTerm] = useState('')
+  
+  const uniqueYears = useMemo(() => getUniqueYears(teams), [teams])
+  const hasMultipleYears = uniqueYears.length > 1
 
-  const filteredAndSortedTeams = useMemo(() => {
-    const filtered = teams.filter(team => 
-      team.manager.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      team.teamName.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-
+  const sortedTeams = useMemo(() => {
     if (sortDirection) {
-      filtered.sort((a, b) => {
-        const aValue = a[sortField]
-        const bValue = b[sortField]
+      return [...teams].sort((a, b) => {
+        // Special handling for efficiency sorting
+        if (sortField === 'efficiency') {
+          const aEfficiency = calculateEfficiencyValue(a.startersPoints, a.potentialPoints)
+          const bEfficiency = calculateEfficiencyValue(b.startersPoints, b.potentialPoints)
+          return sortDirection === 'asc' ? aEfficiency - bEfficiency : bEfficiency - aEfficiency
+        }
+        
+        const aValue = a[sortField as keyof Team]
+        const bValue = b[sortField as keyof Team]
         
         if (typeof aValue === 'string' && typeof bValue === 'string') {
           return sortDirection === 'asc' 
@@ -50,9 +47,8 @@ export default function Leaderboard({ teams }: LeaderboardProps) {
         return 0
       })
     }
-
-    return filtered
-  }, [teams, sortField, sortDirection, searchTerm])
+    return teams
+  }, [teams, sortField, sortDirection])
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -69,144 +65,178 @@ export default function Leaderboard({ teams }: LeaderboardProps) {
 
   const getSortIcon = (field: SortField) => {
     if (sortField !== field || !sortDirection) {
-      return <ArrowUpDown className="ml-2 h-4 w-4" />
+      return <ArrowUpDown className="ml-1 h-3 w-3" />
     }
     return sortDirection === 'desc' 
-      ? <ArrowDown className="ml-2 h-4 w-4" />
-      : <ArrowUp className="ml-2 h-4 w-4" />
+      ? <ArrowDown className="ml-1 h-3 w-3" />
+      : <ArrowUp className="ml-1 h-3 w-3" />
   }
 
-  const formatPoints = (points: number) => {
-    return points.toFixed(1)
+  const calculateEfficiencyValue = (actualPoints: number, potentialPoints: number) => {
+    if (potentialPoints === 0) return 0
+    return (actualPoints / potentialPoints) * 100
+  }
+
+  const getRankStyle = (index: number) => {
+    if (index === 0) return 'bg-yellow-100 text-yellow-800'  // Gold
+    if (index === 1) return 'bg-gray-100 text-gray-800'      // Silver
+    if (index === 2) return 'bg-orange-100 text-orange-800' // Bronze
+    return 'bg-white text-gray-900'
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center space-x-2">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search teams or managers..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8"
-          />
+    <div className="overflow-x-auto">
+      {selectedWeeks.length > 0 && (
+        <div className="mb-3 flex items-center gap-2">
+          <span className="inline-flex items-center rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-600/10 dark:bg-purple-400/10 dark:text-purple-400 dark:ring-purple-400/30">
+            {selectedWeeks.length === 1 
+              ? `Week ${selectedWeeks[0]}` 
+              : `${selectedWeeks.length} weeks selected`
+            }
+          </span>
         </div>
-      </div>
-
-      <div className="rounded-md border overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-16 sticky left-0 bg-background">Rank</TableHead>
-              <TableHead className="w-16 hidden md:table-cell">Year</TableHead>
-              <TableHead className="min-w-[120px] sticky left-16 bg-background md:static md:bg-transparent">
-                <Button
-                  variant="ghost"
-                  onClick={() => handleSort('manager')}
-                  className="h-auto p-0 font-semibold text-left justify-start"
-                >
-                  Manager
-                  {getSortIcon('manager')}
-                </Button>
-              </TableHead>
-              <TableHead className="text-right min-w-[80px]">
-                <Button
-                  variant="ghost"
-                  onClick={() => handleSort('startersPoints')}
-                  className="h-auto p-0 font-semibold"
-                >
-                  <span className="hidden sm:inline">Starters</span>
-                  <span className="sm:hidden">Start</span>
-                  {getSortIcon('startersPoints')}
-                </Button>
-              </TableHead>
-              <TableHead className="text-right min-w-[80px]">
-                <Button
-                  variant="ghost"
-                  onClick={() => handleSort('benchPoints')}
-                  className="h-auto p-0 font-semibold"
-                >
-                  <span className="hidden sm:inline">Bench</span>
-                  <span className="sm:hidden">Bch</span>
-                  {getSortIcon('benchPoints')}
-                </Button>
-              </TableHead>
-              <TableHead className="text-right min-w-[80px]">
-                <Button
-                  variant="ghost"
-                  onClick={() => handleSort('offensePoints')}
-                  className="h-auto p-0 font-semibold"
-                >
-                  <span className="hidden sm:inline">Offense</span>
-                  <span className="sm:hidden">Off</span>
-                  {getSortIcon('offensePoints')}
-                </Button>
-              </TableHead>
-              <TableHead className="text-right min-w-[80px]">
-                <Button
-                  variant="ghost"
-                  onClick={() => handleSort('defensePoints')}
-                  className="h-auto p-0 font-semibold"
-                >
-                  <span className="hidden sm:inline">Defense</span>
-                  <span className="sm:hidden">Def</span>
-                  {getSortIcon('defensePoints')}
-                </Button>
-              </TableHead>
-              <TableHead className="text-right min-w-[80px]">
-                <Button
-                  variant="ghost"
-                  onClick={() => handleSort('totalPoints')}
-                  className="h-auto p-0 font-semibold"
-                >
-                  Total
-                  {getSortIcon('totalPoints')}
-                </Button>
-              </TableHead>
-              <TableHead className="text-right min-w-[80px]">
-                <Button
-                  variant="ghost"
-                  onClick={() => handleSort('potentialPoints')}
-                  className="h-auto p-0 font-semibold"
-                >
-                  <span className="hidden sm:inline">Potential</span>
-                  <span className="sm:hidden">Pot</span>
-                  {getSortIcon('potentialPoints')}
-                </Button>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredAndSortedTeams.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={9} className="h-24 text-center">
-                  No teams found.
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredAndSortedTeams.map((team, index) => (
-                <TableRow key={team.id}>
-                  <TableCell className="font-medium sticky left-0 bg-background">{index + 1}</TableCell>
-                  <TableCell className="hidden md:table-cell">{team.year}</TableCell>
-                  <TableCell className="font-medium sticky left-16 bg-background md:static md:bg-transparent">
-                    <div>
-                      <div className="font-medium">{team.manager}</div>
-                      <div className="text-sm text-muted-foreground">{team.teamName}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">{formatPoints(team.startersPoints)}</TableCell>
-                  <TableCell className="text-right text-muted-foreground">{team.benchPoints > 0 ? formatPoints(team.benchPoints) : '-'}</TableCell>
-                  <TableCell className="text-right">{formatPoints(team.offensePoints)}</TableCell>
-                  <TableCell className="text-right text-muted-foreground">{team.defensePoints > 0 ? formatPoints(team.defensePoints) : '-'}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatPoints(team.totalPoints)}</TableCell>
-                  <TableCell className="text-right text-muted-foreground">{team.potentialPoints > 0 ? formatPoints(team.potentialPoints) : '-'}</TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      )}
+      <table className="min-w-full">
+        <thead>
+          <tr className="bg-blue-600 text-white">
+            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">
+              Rank
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">
+              Year
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">
+              <button
+                onClick={() => handleSort('teamName')}
+                className="flex items-center hover:text-blue-200 transition-colors"
+              >
+                Team
+                {getSortIcon('teamName')}
+              </button>
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">
+              <button
+                onClick={() => handleSort('manager')}
+                className="flex items-center hover:text-blue-200 transition-colors"
+              >
+                Manager
+                {getSortIcon('manager')}
+              </button>
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider">
+              <button
+                onClick={() => handleSort('startersPoints')}
+                className="flex items-center justify-center hover:text-blue-200 transition-colors"
+              >
+                Starters
+                {getSortIcon('startersPoints')}
+              </button>
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider">
+              <button
+                onClick={() => handleSort('benchPoints')}
+                className="flex items-center justify-center hover:text-blue-200 transition-colors"
+              >
+                Bench
+                {getSortIcon('benchPoints')}
+              </button>
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider">
+              <button
+                onClick={() => handleSort('offensePoints')}
+                className="flex items-center justify-center hover:text-blue-200 transition-colors"
+              >
+                Offense
+                {getSortIcon('offensePoints')}
+              </button>
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider">
+              <button
+                onClick={() => handleSort('defensePoints')}
+                className="flex items-center justify-center hover:text-blue-200 transition-colors"
+              >
+                Defense
+                {getSortIcon('defensePoints')}
+              </button>
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider">
+              <button
+                onClick={() => handleSort('totalPoints')}
+                className="flex items-center justify-center hover:text-blue-200 transition-colors"
+              >
+                Total
+                {getSortIcon('totalPoints')}
+              </button>
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider">
+              <button
+                onClick={() => handleSort('potentialPoints')}
+                className="flex items-center justify-center hover:text-blue-200 transition-colors"
+              >
+                Potential
+                {getSortIcon('potentialPoints')}
+              </button>
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider">
+              <button
+                onClick={() => handleSort('efficiency')}
+                className="flex items-center justify-center hover:text-blue-200 transition-colors"
+                title="Sort by Efficiency (Total/Potential)"
+              >
+                Efficiency
+                {getSortIcon('efficiency')}
+              </button>
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-200">
+          {sortedTeams.map((team, index) => (
+            <tr 
+              key={`${team.id}-${team.year}`} 
+              className={`${getRankStyle(index)} hover:bg-gray-50 transition-colors`}
+            >
+              <td className="px-4 py-3 whitespace-nowrap">
+                <div className={`
+                  w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold
+                  ${index < 3 ? getRankStyle(index) : 'bg-gray-100 text-gray-600'}
+                `}>
+                  {index + 1}
+                </div>
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                {team.year}
+              </td>
+              <td className="px-4 py-3 text-sm text-gray-900">
+                {formatTeamDisplay(team, { includeYear: hasMultipleYears })}
+              </td>
+              <td className="px-4 py-3 text-sm text-gray-900">
+                {team.manager}
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-900 font-medium">
+                {formatPoints(team.startersPoints)}
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-600">
+                {formatPoints(team.benchPoints)}
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-900">
+                {formatPoints(team.offensePoints)}
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-900">
+                {formatPoints(team.defensePoints)}
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-900 font-bold">
+                {formatPoints(team.totalPoints)}
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-600">
+                {formatPoints(team.potentialPoints)}
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-green-600 font-medium">
+                {formatEfficiency(team.startersPoints, team.potentialPoints)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }

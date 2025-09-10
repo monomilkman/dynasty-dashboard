@@ -1,5 +1,27 @@
 import { getOwnerName } from './owner-mappings'
 
+export interface Player {
+  id: string
+  name: string
+  team: string
+  position: string
+  score: number
+  status: 'starter' | 'bench' | 'ir' | 'taxi'
+}
+
+export interface WeeklyLineup {
+  week: number
+  starters: Player[]
+  bench: Player[]
+  ir: Player[]
+  taxi: Player[]
+  totalPoints: number
+  startersPoints: number
+  benchPoints: number
+  potentialPoints: number
+  optimalLineup: Player[]
+}
+
 export interface Team {
   id: string
   manager: string
@@ -10,7 +32,118 @@ export interface Team {
   defensePoints: number
   totalPoints: number
   potentialPoints: number
+  qbPoints: number
+  rbPoints: number
+  wrPoints: number
+  tePoints: number
+  kPoints: number
+  dlPoints: number
+  lbPoints: number
+  cbPoints: number
+  sPoints: number
+  offenseFlexPoints: number
+  defenseFlexPoints: number
   year: number
+  // Matchup/Record data
+  wins: number
+  losses: number
+  ties: number
+  pointsFor: number
+  pointsAgainst: number
+  winPercentage: number
+  // Weekly tracking data
+  weeklyScores?: WeeklyLineup[]
+  currentRoster?: Player[]
+}
+
+// MFL API Response Types
+export interface MFLPlayerScoresResponse {
+  playerScores?: {
+    playerScore: Array<{
+      id: string
+      score: string
+      week?: string
+    }>
+  }
+}
+
+export interface MFLRosterResponse {
+  rosters?: {
+    franchise: Array<{
+      id: string
+      player: Array<{
+        id: string
+        status?: string
+        salary?: string
+        contractYear?: string
+        contractInfo?: string
+      }>
+    }>
+  }
+}
+
+export interface MFLWeeklyResultsResponse {
+  weeklyResults?: {
+    matchup: Array<{
+      franchise: Array<{
+        id: string
+        score: string
+        result: string
+        player?: Array<{
+          id: string
+          score: string
+          shouldStart?: string
+          gameSecondsRemaining?: string
+          status?: string
+        }>
+      }>
+    }>
+  }
+}
+
+export interface MFLPlayersResponse {
+  players?: {
+    player: Array<{
+      id: string
+      name: string
+      team: string
+      position: string
+    }>
+  }
+}
+
+export interface MFLLiveScoreResponse {
+  liveScoring?: {
+    franchise: Array<{
+      id: string
+      score: string
+      gameSecondsRemaining: string
+      playersCurrentlyPlaying: string
+      playersYetToPlay: string
+      player?: Array<{
+        id: string
+        score: string
+        gameSecondsRemaining: string
+        status: string
+      }>
+    }>
+  }
+}
+
+// Lineup requirements for the league
+export interface LineupRequirements {
+  qb: number      // 1
+  rb: number      // 2  
+  wr: number      // 2
+  te: number      // 1
+  offenseFlex: number // 1 (RB/WR/TE)
+  k: number       // 1
+  dl: number      // 2
+  lb: number      // 3
+  cb: number      // 2
+  s: number       // 2
+  defenseFlex: number // 1 (DL/LB/CB/S)
+  total: number   // 18
 }
 
 export interface MFLStandingsResponse {
@@ -176,7 +309,25 @@ export function normalizeTeamData(mflData: MFLStandingsResponse, year: number): 
         defensePoints,
         totalPoints,
         potentialPoints,
-        year
+        qbPoints: detailedData?.qbPoints || 0,
+        rbPoints: detailedData?.rbPoints || 0,
+        wrPoints: detailedData?.wrPoints || 0,
+        tePoints: detailedData?.tePoints || 0,
+        kPoints: detailedData?.kPoints || 0,
+        dlPoints: detailedData?.dlPoints || 0,
+        lbPoints: detailedData?.lbPoints || 0,
+        cbPoints: detailedData?.cbPoints || 0,
+        sPoints: detailedData?.sPoints || 0,
+        offenseFlexPoints: detailedData?.offenseFlexPoints || 0,
+        defenseFlexPoints: detailedData?.defenseFlexPoints || 0,
+        year,
+        // Matchup/Record data from API
+        wins: parseFloat((f.h2hw as string) || '0') || 0,
+        losses: parseFloat((f.h2hl as string) || '0') || 0,
+        ties: parseFloat((f.h2ht as string) || '0') || 0,
+        pointsFor: totalPointsFromAPI,
+        pointsAgainst: parseFloat((f.pa as string) || '0') || 0,
+        winPercentage: parseFloat((f.h2hpct as string) || '0') || 0
       }
       
       if (index === 0) {
@@ -218,7 +369,25 @@ export function normalizeTeamData(mflData: MFLStandingsResponse, year: number): 
       defensePoints: 0,
       totalPoints,
       potentialPoints,
-      year
+      qbPoints: 0,
+      rbPoints: 0,
+      wrPoints: 0,
+      tePoints: 0,
+      kPoints: 0,
+      dlPoints: 0,
+      lbPoints: 0,
+      cbPoints: 0,
+      sPoints: 0,
+      offenseFlexPoints: 0,
+      defenseFlexPoints: 0,
+      year,
+      // Matchup/Record data from API
+      wins: parseFloat((f.h2hw as string) || '0') || 0,
+      losses: parseFloat((f.h2hl as string) || '0') || 0,
+      ties: parseFloat((f.h2ht as string) || '0') || 0,
+      pointsFor: totalPoints,
+      pointsAgainst: parseFloat((f.pa as string) || '0') || 0,
+      winPercentage: parseFloat((f.h2hpct as string) || '0') || 0
     }
 
     if (index === 0) {

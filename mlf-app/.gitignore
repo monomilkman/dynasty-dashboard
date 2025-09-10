@@ -32,6 +32,15 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+.env.local
+
+# MFL API keys and sensitive data
+MFL API Keys.txt
+/test-data.json
+/test-matchups.html
+
+# Development documentation
+*.pdf
 
 # vercel
 .vercel

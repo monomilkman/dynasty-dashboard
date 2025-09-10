@@ -18,13 +18,19 @@ export async function scrapeDetailedScoring(leagueId: string, year: number): Pro
   try {
     console.log(`Scraping detailed MFL scoring for league ${leagueId}, year ${year}`)
     
+    // In serverless environments, disable scraping for now to avoid timeouts
+    if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+      console.log('Skipping web scraping in production/serverless environment')
+      return []
+    }
+    
     const scoringData: DetailedScoring[] = []
     
     // Get franchise information from the main league page first
     const leagueUrl = `https://www45.myfantasyleague.com/${year}/options?L=${leagueId}&O=118`
     const leagueResponse = await fetch(leagueUrl, {
       headers: {
-        'User-Agent': 'dynasty-dashboard',
+        'User-Agent': process.env.MFL_USER_AGENT || 'dynasty-dashboard',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       }
     })
@@ -63,7 +69,7 @@ export async function scrapeDetailedScoring(leagueId: string, year: number): Pro
         
         const teamResponse = await fetch(teamUrl, {
           headers: {
-            'User-Agent': 'dynasty-dashboard',
+            'User-Agent': process.env.MFL_USER_AGENT || 'dynasty-dashboard',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           }
         })
@@ -183,7 +189,7 @@ export async function analyzeMLFPage(leagueId: string, year: number): Promise<vo
     
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'dynasty-dashboard',
+        'User-Agent': process.env.MFL_USER_AGENT || 'dynasty-dashboard',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       }
     })
