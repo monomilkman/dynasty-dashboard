@@ -61,7 +61,7 @@ async function aggregateWeeklyData(year: string, leagueId: string, weeks: number
   const leagueResponse = await fetchWithRetry(leagueUrl, { headers })
   
   const franchiseNames: { [key: string]: string } = {}
-  const leagueData = leagueResponse?.league
+  const leagueData = (leagueResponse as any)?.league
   if (leagueData?.franchises?.franchise) {
     const franchises = Array.isArray(leagueData.franchises.franchise) 
       ? leagueData.franchises.franchise 
