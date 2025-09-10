@@ -243,10 +243,10 @@ export function combinePlayerData(
   if (Array.isArray(franchiseList)) {
     // Multiple franchises
     franchiseList.forEach(franchise => {
-      const players = Array.isArray(franchise.player) ? franchise.player : [franchise.player].filter(Boolean)
-      players.forEach(player => {
+      const players = Array.isArray((franchise as any).player) ? (franchise as any).player : [(franchise as any).player].filter(Boolean)
+      players.forEach((player: any) => {
         rosterStatusMap.set(player.id, {
-          franchiseId: franchise.id,
+          franchiseId: (franchise as any).id,
           status: player.status || 'active'
         })
       })
@@ -254,10 +254,10 @@ export function combinePlayerData(
   } else if (franchiseList) {
     // Single franchise
     const franchise = franchiseList
-    const players = Array.isArray(franchise.player) ? franchise.player : [franchise.player].filter(Boolean)
-    players.forEach(player => {
+    const players = Array.isArray((franchise as any).player) ? (franchise as any).player : [(franchise as any).player].filter(Boolean)
+    players.forEach((player: any) => {
       rosterStatusMap.set(player.id, {
-        franchiseId: franchise.id,
+        franchiseId: (franchise as any).id,
         status: player.status || 'active'
       })
     })

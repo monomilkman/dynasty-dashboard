@@ -81,7 +81,7 @@ export async function fetchHistoricalSeasonData(
     
     const ytdResponse = await fetchWithRetry(ytdUrl, { headers }) as MFLWeeklyResultsResponse
     
-    if (!ytdResponse?.allWeeklyResults?.weeklyResults) {
+    if (!ytdResponse?.weeklyResults) {
       console.error('No YTD weekly results found')
       return new Map()
     }
@@ -98,9 +98,9 @@ export async function fetchHistoricalSeasonData(
       })
     }
     
-    console.log(`Processing ${ytdResponse.allWeeklyResults.weeklyResults.length} weeks of YTD data`)
+    console.log(`Processing ${ytdResponse.weeklyResults.length} weeks of YTD data`)
     
-    return parseYTDData(ytdResponse.allWeeklyResults.weeklyResults as YTDWeekData[], playerPositions)
+    return parseYTDData(ytdResponse.weeklyResults as YTDWeekData[], playerPositions)
     
   } catch (error) {
     console.error(`Error fetching historical data for ${year}:`, error)

@@ -156,10 +156,10 @@ export default function RankingsTable({ teams }: RankingsTableProps) {
             {isPerYearMode && hasMultipleYears && currentCategory?.yearlyRankings ? (
               // Per-year rankings mode
               uniqueYears.map(year => {
-                const yearCategory = currentCategory.yearlyRankings[year]?.find(cat => cat.id === selectedCategory)
+                const yearCategory = currentCategory.yearlyRankings[year]?.find((cat: any) => cat.id === selectedCategory)
                 if (!yearCategory) return null
                 
-                return yearCategory.rankings.map((ranking, index) => {
+                return yearCategory.rankings.map((ranking: any, index: number) => {
                   const badgeStyle = getRankingBadgeStyle(ranking.rank, yearCategory.rankings.length)
                   const team = teams.find(t => t.id === ranking.teamId && t.year === year)
                   
@@ -216,7 +216,7 @@ export default function RankingsTable({ teams }: RankingsTableProps) {
               }).flat().filter(Boolean)
             ) : (
               // Combined rankings mode (default)
-              currentCategory.rankings.map((ranking) => {
+              currentCategory.rankings.map((ranking: any) => {
                 const badgeStyle = getRankingBadgeStyle(ranking.rank, teams.length)
                 const team = teams.find(t => t.id === ranking.teamId)
                 
@@ -301,7 +301,7 @@ export default function RankingsTable({ teams }: RankingsTableProps) {
               <p className="text-sm text-yellow-700 dark:text-yellow-300">Average Value</p>
               <p className="text-lg font-bold text-yellow-800 dark:text-yellow-200">
                 {formatRankingValue(
-                  currentCategory.rankings.reduce((sum, r) => sum + r.value, 0) / currentCategory.rankings.length,
+                  currentCategory.rankings.reduce((sum: number, r: any) => sum + r.value, 0) / currentCategory.rankings.length,
                   selectedCategory
                 )}
               </p>

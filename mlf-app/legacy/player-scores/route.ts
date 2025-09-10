@@ -40,7 +40,12 @@ export async function GET(request: NextRequest) {
   const franchiseId = searchParams.get('franchiseId') // Optional: get specific team
   
   // Create cache key
-  const cacheKey = getCacheKey('player-scores', { year, leagueId, week, franchiseId })
+  const cacheKey = getCacheKey('player-scores', { 
+    year, 
+    leagueId, 
+    week, 
+    ...(franchiseId && { franchiseId }) 
+  })
   
   try {
     // Check cache first
@@ -56,7 +61,7 @@ export async function GET(request: NextRequest) {
     const [playerScores, playerDatabase, rosters] = await Promise.all([
       fetchPlayerScores(year, leagueId, week),
       fetchPlayers(year),
-      fetchRosters(year, leagueId, franchiseId)
+      fetchRosters(year, leagueId, franchiseId || undefined)
     ])
     
     // Combine player data

@@ -222,7 +222,7 @@ export default function SeasonBreakdownTable({ teams }: SeasonBreakdownTableProp
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {sortedTeams.map((team, index) => {
-                const displayInfo = formatTeamDisplay(team.manager, team.teamName)
+                const displayInfo = formatTeamDisplay(team as any)
                 const breakdownDisplay = formatSeasonBreakdown(team.breakdown)
                 const efficiencyRating = getEfficiencyRating(team.efficiency)
                 const hasPostseason = hasPostseasonData(team.breakdown)
@@ -235,13 +235,13 @@ export default function SeasonBreakdownTable({ teams }: SeasonBreakdownTableProp
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {displayInfo.teamName}
+                          {team.teamName}
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900 dark:text-gray-300">
-                        {displayInfo.manager}
+                        {team.manager}
                       </div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-center">

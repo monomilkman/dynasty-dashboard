@@ -455,7 +455,7 @@ export default function Home() {
             ) : activeView === 'matchups' ? (
               <MatchupsTable teams={filteredTeams} selectedWeeks={selectedWeeks} />
             ) : activeView === 'rankings' ? (
-              <RankingsTable teams={filteredTeams} selectedWeeks={selectedWeeks} />
+              <RankingsTable teams={filteredTeams} />
             ) : activeView === 'comparison' ? (
               <HeadToHeadComparison teams={filteredTeams} selectedWeeks={selectedWeeks} />
             ) : activeView === 'breakdown' ? (
@@ -470,7 +470,7 @@ export default function Home() {
                     <TeamChart teams={filteredTeams} chartType={statFilter === 'defense' ? 'defensePoints' : 'offensePoints'} selectedWeeks={selectedWeeks} />
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                    <TeamChart teams={filteredTeams} chartType={statFilter === 'offense' ? 'starterPoints' : statFilter === 'defense' ? 'defensePoints' : 'potentialPoints'} selectedWeeks={selectedWeeks} />
+                    <TeamChart teams={filteredTeams} chartType={statFilter === 'offense' ? 'startersPoints' : statFilter === 'defense' ? 'defensePoints' : 'potentialPoints'} selectedWeeks={selectedWeeks} />
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                     <TeamChart teams={filteredTeams} chartType={statFilter === 'offense' ? 'qbPoints' : statFilter === 'defense' ? 'dlPoints' : 'benchPoints'} selectedWeeks={selectedWeeks} />

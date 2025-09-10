@@ -63,7 +63,12 @@ export async function GET(request: NextRequest) {
   const cacheTime = isCurrentWeek ? CURRENT_WEEK_CACHE : CACHE_DURATION
   
   // Create cache key
-  const cacheKey = getCacheKey('weekly-results', { year, leagueId, week: week || 'all', franchiseId })
+  const cacheKey = getCacheKey('weekly-results', { 
+    year, 
+    leagueId, 
+    week: week || 'all',
+    ...(franchiseId && { franchiseId })
+  })
   
   try {
     // Check cache first
