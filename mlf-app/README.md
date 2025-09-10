@@ -218,3 +218,5 @@ MIT License - see LICENSE file for details.
 ---
 
 **Dynasty Dashboard** - Built for our fantasy football league with ❤️ using Next.js and TypeScript.
+
+*Ready for deployment on Vercel!*
