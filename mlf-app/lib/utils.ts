@@ -6,15 +6,16 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // Formatting utilities for consistent decimal display
-export const formatDecimal = (value: number, decimals: number = 2): string => {
+export const formatDecimal = (value: number | undefined | null, decimals: number = 2): string => {
+  if (value === undefined || value === null || isNaN(value)) return '0.00'
   return value.toFixed(decimals)
 }
 
-export const formatPoints = (points: number): string => {
+export const formatPoints = (points: number | undefined | null): string => {
   return formatDecimal(points, 2)
 }
 
-export const formatPercentage = (value: number): string => {
+export const formatPercentage = (value: number | undefined | null): string => {
   return formatDecimal(value, 2) + '%'
 }
 

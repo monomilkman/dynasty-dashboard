@@ -380,7 +380,10 @@ export default function MatchupsTable({ teams, selectedWeeks }: MatchupsTablePro
             <div>
               <p className="text-sm text-blue-700 dark:text-blue-300">Highest Scoring</p>
               <p className="text-lg font-bold text-blue-800 dark:text-blue-200">
-                {[...matchupsData].sort((a, b) => b.pointsFor - a.pointsFor)[0]?.teamName} ({formatPoints([...matchupsData].sort((a, b) => b.pointsFor - a.pointsFor)[0]?.pointsFor)})
+                {(() => {
+                  const topScorer = [...matchupsData].sort((a, b) => b.pointsFor - a.pointsFor)[0]
+                  return topScorer ? `${topScorer.teamName} (${formatPoints(topScorer.pointsFor)})` : 'N/A'
+                })()}
               </p>
             </div>
           </div>
