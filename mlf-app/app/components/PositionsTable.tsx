@@ -359,7 +359,7 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
                   className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   <td className="px-3 py-2 text-sm font-medium text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700 min-w-48">
-                    {formatTeamDisplay(team, { includeYear: hasMultipleYears })}
+                    {formatTeamDisplay(team as any, { includeYear: hasMultipleYears })}
                   </td>
                   
                   <td className="px-3 py-2 text-sm text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700 min-w-36">
