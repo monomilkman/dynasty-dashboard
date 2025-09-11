@@ -130,6 +130,24 @@ export interface MFLLiveScoreResponse {
   }
 }
 
+export interface MFLPlayerRosterStatusResponse {
+  playerRosterStatus?: {
+    player: Array<{
+      id: string
+      name?: string
+      position?: string
+      team?: string
+      is_fa?: string
+      cant_add?: string
+      locked?: string
+      franchise?: Array<{
+        id: string
+        status: string // R (roster), S (starter), NS (non-starter), IR (injured reserve), TS (taxi squad)
+      }>
+    }>
+  }
+}
+
 // Lineup requirements for the league
 export interface LineupRequirements {
   qb: number      // 1

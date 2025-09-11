@@ -6,9 +6,12 @@ import { getCurrentYearString } from '@/lib/utils'
 import { 
   fetchPlayerScores, 
   fetchPlayers, 
-  fetchRosters, 
+  fetchRosters,
+  fetchWeeklyResults,
   combinePlayerData,
   calculateOptimalLineup,
+  extractStarterIds,
+  extractOfficialScoring,
   LINEUP_REQUIREMENTS 
 } from '@/lib/mfl-api-endpoints'
 import { getYearSpecificHeaders } from '@/lib/mfl-api-keys'
@@ -543,7 +546,7 @@ export async function GET(request: NextRequest) {
         // Collection for debug reports
         const debugReports: any[] = []
         
-        detailedScoring = franchiseIds.map(franchiseId => {
+        detailedScoring = await Promise.all(franchiseIds.map(async (franchiseId) => {
           console.log(`*** PROCESSING FRANCHISE ${franchiseId} WITH ACCURATE CALCULATIONS ***`)
           
           // Use the EXACT same function as positions API for starter points
@@ -557,13 +560,41 @@ export async function GET(request: NextRequest) {
           // Get all players for this franchise
           const franchisePlayers = combinedPlayers.filter(p => p.team === franchiseId)
           
-          // Create starter ID set from weekly lineup data
-          const starterIds = new Set<string>()
-          weeklyLineupData.forEach(lineup => {
-            if (lineup.franchiseId === franchiseId) {
-              lineup.starterIds.forEach((id: string) => starterIds.add(id))
+          // ENHANCED STARTER IDENTIFICATION - Try to get official MFL weeklyResults first
+          let starterIds = new Set<string>()
+          let officialMFLScoring = null
+          
+          try {
+            // Try to fetch weeklyResults for more accurate starter identification
+            const weeklyResults = await fetchWeeklyResults(year, leagueId, latestWeek.toString())
+            
+            // Extract official starter IDs using shouldStart field
+            const officialStarterIds = extractStarterIds(weeklyResults, franchiseId)
+            
+            if (officialStarterIds.size > 0) {
+              starterIds = officialStarterIds
+              console.log(`✓ Using official MFL starter IDs from weeklyResults for franchise ${franchiseId}: ${starterIds.size} starters`)
+              
+              // Try to extract official MFL bench/potential points for comparison
+              officialMFLScoring = extractOfficialScoring(weeklyResults, franchiseId)
+            } else {
+              console.warn(`⚠ No official starter data found in weeklyResults for franchise ${franchiseId}, falling back to weekly lineup data`)
+              // Fallback to current method
+              weeklyLineupData.forEach(lineup => {
+                if (lineup.franchiseId === franchiseId) {
+                  lineup.starterIds.forEach((id: string) => starterIds.add(id))
+                }
+              })
             }
-          })
+          } catch (error) {
+            console.warn(`Failed to fetch weeklyResults for franchise ${franchiseId}, using fallback method:`, error)
+            // Fallback to current method
+            weeklyLineupData.forEach(lineup => {
+              if (lineup.franchiseId === franchiseId) {
+                lineup.starterIds.forEach((id: string) => starterIds.add(id))
+              }
+            })
+          }
           
           // Convert to calculation format for accurate processing
           const playersForCalculation = convertToCalculationFormat(franchisePlayers, starterIds)
@@ -631,21 +662,32 @@ export async function GET(request: NextRequest) {
             console.warn(`Franchise ${franchiseId}: All points are zero - this may indicate missing data`)
           }
           
-          // Log comparison with expected MFL values if testing franchise 0001
-          if (franchiseId === '0001' && DEBUG_CONFIG.enabled) {
-            logMFLComparisonDebug(franchiseId, {
-              bench: benchPoints,
-              potential: potentialPoints, 
-              starters: startersPoints
-            }, {
-              bench: 134.08, // Expected MFL value
-              potential: 251.77, // Expected MFL value
-              starters: startersPoints // Keep current starter calculation
-            })
+          // Enhanced comparison logging with official MFL values if available
+          if (DEBUG_CONFIG.enabled) {
+            const comparisonValues = officialMFLScoring || 
+              (franchiseId === '0001' ? {
+                bench: 134.08, // Expected MFL value from screenshot
+                potential: 251.77, // Expected MFL value from screenshot  
+                starters: startersPoints
+              } : null)
+            
+            if (comparisonValues) {
+              logMFLComparisonDebug(franchiseId, {
+                bench: benchPoints,
+                potential: potentialPoints,
+                starters: startersPoints
+              }, comparisonValues)
+              
+              if (officialMFLScoring) {
+                console.log(`📊 Using official MFL scoring data for franchise ${franchiseId} comparison`)
+              } else {
+                console.log(`📊 Using hardcoded expected values for franchise ${franchiseId} comparison`)
+              }
+            }
           }
           
           return validatedData
-        }).filter(Boolean)
+        }))
         
         // Store comprehensive debug report if enabled
         if (DEBUG_CONFIG.storeRawResponses && debugReports.length > 0) {

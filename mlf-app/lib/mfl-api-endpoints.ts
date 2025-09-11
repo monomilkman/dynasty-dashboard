@@ -9,6 +9,7 @@ import {
   MFLWeeklyResultsResponse, 
   MFLPlayersResponse, 
   MFLLiveScoreResponse,
+  MFLPlayerRosterStatusResponse,
   Player,
   LineupRequirements 
 } from './mfl'
@@ -211,6 +212,42 @@ export async function fetchLiveScoring(
 }
 
 /**
+ * Fetch player roster status for accurate starter/bench identification
+ * @param year - Season year
+ * @param leagueId - League ID
+ * @param playerIds - Player IDs (comma-separated)
+ * @param week - Week number (optional, defaults to current)
+ * @param franchiseId - Franchise ID for perspective (optional)
+ * @returns Player roster status data
+ */
+export async function fetchPlayerRosterStatus(
+  year: string, 
+  leagueId: string = DEFAULT_LEAGUE_ID, 
+  playerIds: string[],
+  week?: string | number,
+  franchiseId?: string
+): Promise<MFLPlayerRosterStatusResponse> {
+  const { baseUrl } = getApiConfig()
+  let url = `${baseUrl}/${year}/export?TYPE=playerRosterStatus&L=${leagueId}&P=${playerIds.join(',')}&JSON=1`
+  
+  if (week) {
+    url += `&W=${week}`
+  }
+  
+  if (franchiseId) {
+    url += `&F=${franchiseId}`
+  }
+  
+  console.log(`Fetching player roster status: ${url}`)
+  
+  const response = await fetchWithRetry(url, {
+    headers: getRequestHeaders(year)
+  })
+  
+  return response as MFLPlayerRosterStatusResponse
+}
+
+/**
  * Combine player data from multiple sources to create full player objects
  * @param playerScores - Player scores from API
  * @param playerDatabase - Player names/info from database
@@ -394,6 +431,90 @@ export function calculateOptimalLineup(
   })
   
   return lineup
+}
+
+/**
+ * Extract starter IDs from weeklyResults data using shouldStart field
+ * @param weeklyResults - Weekly results response from MFL
+ * @param franchiseId - Target franchise ID
+ * @returns Set of starter player IDs
+ */
+export function extractStarterIds(
+  weeklyResults: MFLWeeklyResultsResponse,
+  franchiseId: string
+): Set<string> {
+  const starterIds = new Set<string>()
+  
+  const matchups = weeklyResults.weeklyResults?.matchup
+  if (!matchups) {
+    console.warn(`No matchup data found in weeklyResults for franchise ${franchiseId}`)
+    return starterIds
+  }
+  
+  // Find the franchise in the matchup data
+  for (const matchup of matchups) {
+    const franchises = matchup.franchise
+    if (!franchises) continue
+    
+    for (const franchise of franchises) {
+      if (franchise.id === franchiseId) {
+        const players = franchise.player
+        if (!players) continue
+        
+        // Extract players with shouldStart = "1"
+        for (const player of players) {
+          if (player.shouldStart === "1") {
+            starterIds.add(player.id)
+          }
+        }
+        
+        console.log(`Found ${starterIds.size} starters for franchise ${franchiseId} from weeklyResults`)
+        return starterIds
+      }
+    }
+  }
+  
+  console.warn(`Franchise ${franchiseId} not found in weeklyResults matchup data`)
+  return starterIds
+}
+
+/**
+ * Extract official bench and potential points from weeklyResults if available
+ * @param weeklyResults - Weekly results response from MFL  
+ * @param franchiseId - Target franchise ID
+ * @returns Official MFL scoring values or null if not available
+ */
+export function extractOfficialScoring(
+  weeklyResults: MFLWeeklyResultsResponse,
+  franchiseId: string
+): { benchPoints: number; potentialPoints: number; startersPoints: number } | null {
+  const matchups = weeklyResults.weeklyResults?.matchup
+  if (!matchups) return null
+  
+  // Look for franchise in matchup data
+  for (const matchup of matchups) {
+    const franchises = matchup.franchise
+    if (!franchises) continue
+    
+    for (const franchise of franchises) {
+      if (franchise.id === franchiseId) {
+        // MFL sometimes includes additional scoring fields in franchise data
+        const franchiseData = franchise as any
+        
+        // Check for common MFL scoring field names
+        const benchPoints = parseFloat(franchiseData.benchPoints || franchiseData.bp || '0')
+        const potentialPoints = parseFloat(franchiseData.potentialPoints || franchiseData.pp || franchiseData.maxpf || '0')
+        const startersPoints = parseFloat(franchise.score || '0')
+        
+        if (benchPoints > 0 || potentialPoints > 0) {
+          console.log(`Found official MFL scoring for franchise ${franchiseId}: starters=${startersPoints}, bench=${benchPoints}, potential=${potentialPoints}`)
+          return { benchPoints, potentialPoints, startersPoints }
+        }
+      }
+    }
+  }
+  
+  return null
 }
 
 /**
