@@ -441,12 +441,26 @@ export async function GET(request: NextRequest) {
         combinedPlayers = combinePlayerData(playerScores, playerDatabase, rosters)
         
       } else {
-        // Current season logic (2025+) - Use EXACT same approach as positions API
-        console.log(`*** USING EXACT POSITIONS API APPROACH FOR CURRENT SEASON ${year} ***`)
+        // Current season logic (2025+) - Use positions API approach for accuracy + full data for bench/potential
+        console.log(`*** USING POSITIONS API APPROACH + FULL DATA FOR CURRENT SEASON ${year} ***`)
         
-        // Get weekly lineup data directly (same as positions API)
+        // Get weekly lineup data directly (same as positions API for accurate positions)
         const weeklyLineups = await fetchAllWeeklyResults(parseInt(year), leagueId)
         console.log(`Fetched ${weeklyLineups.length} weekly lineups from official MFL data`)
+        
+        // Also fetch complete player data for bench and potential calculations
+        const latestWeek = await getLatestAvailableWeek(year, leagueId)
+        console.log(`Fetching complete player data for week ${latestWeek} for bench/potential calculations`)
+        
+        const [playerScores, playerDatabase, rosters] = await Promise.all([
+          fetchPlayerScores(year, leagueId, latestWeek.toString()),
+          fetchPlayers(year),
+          fetchRosters(year, leagueId)
+        ])
+        
+        // Combine player data (needed for bench/potential calculations)
+        combinedPlayers = combinePlayerData(playerScores, playerDatabase, rosters)
+        console.log(`Combined ${combinedPlayers.length} players for bench/potential calculations`)
         
         // Store the weekly lineup data to use for position calculations
         weeklyLineupData = weeklyLineups
@@ -455,7 +469,7 @@ export async function GET(request: NextRequest) {
       // Historical seasons are now handled by the new service
       console.log(`Historical data fetched successfully for ${historicalTeamsData.size} teams`)
       
-      // Group players by franchise and calculate detailed stats (skip for current season using positions method)
+      // Group players by franchise and calculate detailed stats
       const franchiseData: { [franchiseId: string]: any } = {}
       
       if (combinedPlayers.length > 0) {
@@ -468,6 +482,7 @@ export async function GET(request: NextRequest) {
           }
           franchiseData[player.team].players.push(player)
         })
+        console.log(`Grouped players into ${Object.keys(franchiseData).length} franchises for calculations`)
       }
       
       
@@ -526,12 +541,32 @@ export async function GET(request: NextRequest) {
           const defensePoints = positionTotals.DL + positionTotals.LB + positionTotals.CB + positionTotals.S + positionTotals['D-Flex']
           const startersPoints = offensePoints + defensePoints
           
-          // For now, set bench and potential points based on the positions data
-          // This will be more accurate than trying to calculate separately
-          const benchPoints = 0 // Will need to calculate separately if needed
-          const potentialPoints = startersPoints // For now, use same as starters
+          // Calculate bench and potential points using complete player data
+          const franchisePlayers = combinedPlayers.filter(p => p.team === franchiseId)
+          const activePlayersOnly = franchisePlayers.filter(p => p.status !== 'ir' && p.status !== 'taxi')
           
-          console.log(`Franchise ${franchiseId} scoring (positions method): Starters=${startersPoints}, Offense=${offensePoints}, Defense=${defensePoints}`)
+          // Create starter ID set from weekly lineup data
+          const starterIds = new Set<string>()
+          weeklyLineupData.forEach(lineup => {
+            if (lineup.franchiseId === franchiseId) {
+              lineup.starterIds.forEach(id => starterIds.add(id))
+            }
+          })
+          
+          // Separate starters and bench players
+          const starterPlayers = activePlayersOnly.filter(p => starterIds.has(p.id))
+          const benchPlayers = activePlayersOnly.filter(p => !starterIds.has(p.id))
+          
+          console.log(`Franchise ${franchiseId}: ${starterPlayers.length} starters, ${benchPlayers.length} bench players from combined data`)
+          
+          // Calculate bench points from actual bench players
+          const benchPoints = benchPlayers.reduce((sum: number, p: any) => sum + p.score, 0)
+          
+          // Calculate potential points using optimal lineup algorithm
+          const optimalLineup = calculateOptimalLineup(activePlayersOnly, LINEUP_REQUIREMENTS)
+          const potentialPoints = optimalLineup.reduce((sum: number, p: any) => sum + p.score, 0)
+          
+          console.log(`Franchise ${franchiseId} scoring: Starters=${startersPoints}, Bench=${benchPoints}, Offense=${offensePoints}, Defense=${defensePoints}, Potential=${potentialPoints}`)
           
           // Create data structure matching what normalizeTeamData expects
           const validatedData = {
