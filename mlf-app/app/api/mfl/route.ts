@@ -16,6 +16,21 @@ import { fetchHistoricalSeasonData } from '@/lib/mfl-historical-service'
 import { validateSeasonData, sanitizeTeamData, generateDataQualityReport } from '@/lib/mfl-data-validator'
 import { scrapeLeagueStats } from '@/lib/mfl-web-scraper'
 import { fetchAllWeeklyResults, calculateAccuratePositionTotals } from '@/lib/mfl-weekly-results'
+import { 
+  calculateBenchPoints, 
+  calculatePotentialPoints, 
+  convertToCalculationFormat, 
+  generateCalculationDebugReport,
+  calculatePositionBreakdown,
+  MFL_LINEUP_REQUIREMENTS 
+} from '@/lib/mfl-calculations'
+import { 
+  DEBUG_CONFIG,
+  logCalculationDebug, 
+  storeRawAPIResponse, 
+  logMFLComparisonDebug,
+  storeCalculationDebugReport 
+} from '@/lib/mfl-debug'
 
 
 // Cache duration: 5 minutes for standings data  
@@ -525,10 +540,13 @@ export async function GET(request: NextRequest) {
         const franchiseIds = [...new Set(weeklyLineupData.map(lineup => lineup.franchiseId))]
         console.log(`Found ${franchiseIds.length} franchises from weekly lineups: ${franchiseIds.join(', ')}`)
         
+        // Collection for debug reports
+        const debugReports: any[] = []
+        
         detailedScoring = franchiseIds.map(franchiseId => {
-          console.log(`*** PROCESSING FRANCHISE ${franchiseId} USING POSITIONS API METHOD ***`)
+          console.log(`*** PROCESSING FRANCHISE ${franchiseId} WITH ACCURATE CALCULATIONS ***`)
           
-          // Use the EXACT same function as positions API
+          // Use the EXACT same function as positions API for starter points
           const positionTotals = calculateAccuratePositionTotals(weeklyLineupData, franchiseId)
           
           // Calculate totals from position data (like positions API does)
@@ -536,9 +554,8 @@ export async function GET(request: NextRequest) {
           const defensePoints = positionTotals.DL + positionTotals.LB + positionTotals.CB + positionTotals.S + positionTotals['D-Flex']
           const startersPoints = offensePoints + defensePoints
           
-          // Calculate bench and potential points using complete player data
+          // Get all players for this franchise
           const franchisePlayers = combinedPlayers.filter(p => p.team === franchiseId)
-          const activePlayersOnly = franchisePlayers.filter(p => p.status !== 'ir' && p.status !== 'taxi')
           
           // Create starter ID set from weekly lineup data
           const starterIds = new Set<string>()
@@ -548,20 +565,38 @@ export async function GET(request: NextRequest) {
             }
           })
           
-          // Separate starters and bench players
-          const starterPlayers = activePlayersOnly.filter(p => starterIds.has(p.id))
-          const benchPlayers = activePlayersOnly.filter(p => !starterIds.has(p.id))
+          // Convert to calculation format for accurate processing
+          const playersForCalculation = convertToCalculationFormat(franchisePlayers, starterIds)
           
-          console.log(`Franchise ${franchiseId}: ${starterPlayers.length} starters, ${benchPlayers.length} bench players from combined data`)
+          // Store raw API data if debugging is enabled
+          if (DEBUG_CONFIG.storeRawResponses) {
+            storeRawAPIResponse('franchise-players', year, 'YTD', franchiseId, {
+              franchisePlayers,
+              starterIds: Array.from(starterIds),
+              playersForCalculation
+            })
+          }
           
-          // Calculate bench points from actual bench players
-          const benchPoints = benchPlayers.reduce((sum: number, p: any) => sum + p.score, 0)
+          // Calculate ACCURATE bench points using new function
+          const { benchPoints, benchPlayers } = calculateBenchPoints(playersForCalculation, starterIds)
           
-          // Calculate potential points using optimal lineup algorithm
-          const optimalLineup = calculateOptimalLineup(activePlayersOnly, LINEUP_REQUIREMENTS)
-          const potentialPoints = optimalLineup.reduce((sum: number, p: any) => sum + p.score, 0)
+          // Calculate ACCURATE potential points using new function  
+          const { potentialPoints, optimalLineup } = calculatePotentialPoints(playersForCalculation, MFL_LINEUP_REQUIREMENTS)
           
-          console.log(`Franchise ${franchiseId} scoring: Starters=${startersPoints}, Bench=${benchPoints}, Offense=${offensePoints}, Defense=${defensePoints}, Potential=${potentialPoints}`)
+          // Generate debug report
+          const debugReport = generateCalculationDebugReport(franchiseId, playersForCalculation, starterIds)
+          debugReports.push(debugReport)
+          
+          // Log detailed debug information if enabled
+          if (DEBUG_CONFIG.enabled) {
+            logCalculationDebug(debugReport)
+          }
+          
+          // Calculate position breakdown for compatibility
+          const starterPlayers = playersForCalculation.filter(p => starterIds.has(p.id))
+          const positionBreakdown = calculatePositionBreakdown(starterPlayers)
+          
+          console.log(`Franchise ${franchiseId} ACCURATE scoring: Starters=${startersPoints.toFixed(2)}, Bench=${benchPoints.toFixed(2)}, Offense=${offensePoints.toFixed(2)}, Defense=${defensePoints.toFixed(2)}, Potential=${potentialPoints.toFixed(2)}`)
           
           // Create data structure matching what normalizeTeamData expects
           const validatedData = {
@@ -586,19 +621,36 @@ export async function GET(request: NextRequest) {
             defenseFlexPoints: positionTotals['D-Flex'] || 0
           }
           
+          // Enhanced validation with debug info
+          if (debugReport.issues.length > 0) {
+            console.warn(`Franchise ${franchiseId} has calculation issues:`, debugReport.issues)
+          }
+          
           // Validate that we have reasonable data for a completed week
           if (year === '2025' && validatedData.startersPoints === 0 && validatedData.benchPoints === 0) {
             console.warn(`Franchise ${franchiseId}: All points are zero - this may indicate missing data`)
           }
           
-          // Ensure potential points is at least as high as starters points
-          if (validatedData.potentialPoints < validatedData.startersPoints) {
-            console.warn(`Franchise ${franchiseId}: Potential points (${validatedData.potentialPoints}) lower than starters (${validatedData.startersPoints}) - adjusting`)
-            validatedData.potentialPoints = Math.max(validatedData.potentialPoints, validatedData.startersPoints)
+          // Log comparison with expected MFL values if testing franchise 0001
+          if (franchiseId === '0001' && DEBUG_CONFIG.enabled) {
+            logMFLComparisonDebug(franchiseId, {
+              bench: benchPoints,
+              potential: potentialPoints, 
+              starters: startersPoints
+            }, {
+              bench: 134.08, // Expected MFL value
+              potential: 251.77, // Expected MFL value
+              starters: startersPoints // Keep current starter calculation
+            })
           }
           
           return validatedData
         }).filter(Boolean)
+        
+        // Store comprehensive debug report if enabled
+        if (DEBUG_CONFIG.storeRawResponses && debugReports.length > 0) {
+          storeCalculationDebugReport(year, 'YTD', debugReports)
+        }
       }
       
       console.log(`Successfully calculated detailed scoring for ${detailedScoring.length} teams via MFL API`)
