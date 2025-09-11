@@ -7,16 +7,12 @@ import {
   fetchPlayerScores, 
   fetchPlayers, 
   fetchRosters, 
-  fetchWeeklyResults,
-  fetchYTDWeeklyResults,
   combinePlayerData,
   calculateOptimalLineup,
-  calculatePositionPoints,
   LINEUP_REQUIREMENTS 
 } from '@/lib/mfl-api-endpoints'
-import { getOfficialTeamStats, hasOfficialData } from '@/lib/historical-data/2024-official-values'
 import { getYearSpecificHeaders } from '@/lib/mfl-api-keys'
-import { fetchHistoricalSeasonData, fetchLineupRequirements } from '@/lib/mfl-historical-service'
+import { fetchHistoricalSeasonData } from '@/lib/mfl-historical-service'
 import { validateSeasonData, sanitizeTeamData, generateDataQualityReport } from '@/lib/mfl-data-validator'
 import { scrapeLeagueStats } from '@/lib/mfl-web-scraper'
 import { fetchAllWeeklyResults, calculateAccuratePositionTotals } from '@/lib/mfl-weekly-results'
@@ -424,7 +420,6 @@ export async function GET(request: NextRequest) {
     try {
       let combinedPlayers: any[] = []
       let weeklyLineupData: any[] = []
-      let weeklyLineupMap = new Map<string, Map<string, boolean>>()
       
       if (isHistoricalSeason) {
         // Use enhanced historical service for accurate data
@@ -549,7 +544,7 @@ export async function GET(request: NextRequest) {
           const starterIds = new Set<string>()
           weeklyLineupData.forEach(lineup => {
             if (lineup.franchiseId === franchiseId) {
-              lineup.starterIds.forEach(id => starterIds.add(id))
+              lineup.starterIds.forEach((id: string) => starterIds.add(id))
             }
           })
           
