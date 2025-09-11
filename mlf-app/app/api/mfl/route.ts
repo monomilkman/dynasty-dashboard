@@ -301,7 +301,7 @@ async function getLatestAvailableWeek(year: string, leagueId: string): Promise<n
       console.log(`Checking Week ${week} for data availability...`)
       const playerScores = await fetchPlayerScores(year, leagueId, week.toString())
       
-      if (playerScores?.playerScores?.playerScore?.length > 0) {
+      if (playerScores?.playerScores?.playerScore && playerScores.playerScores.playerScore.length > 0) {
         console.log(`✓ Week ${week} has ${playerScores.playerScores.playerScore.length} player scores - using this week`)
         
         // Cache the result
