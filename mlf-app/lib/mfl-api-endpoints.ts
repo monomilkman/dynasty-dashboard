@@ -407,6 +407,8 @@ export function calculatePositionPoints(players: Player[]): {
   sPoints: number
   offensePoints: number
   defensePoints: number
+  offenseFlexPoints: number
+  defenseFlexPoints: number
 } {
   const positions = {
     qbPoints: 0,
@@ -419,7 +421,9 @@ export function calculatePositionPoints(players: Player[]): {
     cbPoints: 0,
     sPoints: 0,
     offensePoints: 0,
-    defensePoints: 0
+    defensePoints: 0,
+    offenseFlexPoints: 0,
+    defenseFlexPoints: 0
   }
   
   players.forEach(player => {

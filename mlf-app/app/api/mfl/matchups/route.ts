@@ -42,8 +42,9 @@ export async function GET(request: NextRequest) {
     if (weeksParam) {
       weeksToFetch = weeksParam.split(',').map(w => parseInt(w.trim())).filter(w => w >= 1 && w <= totalWeeks)
     } else {
-      // Default to all available weeks for the season
-      weeksToFetch = Array.from({ length: totalWeeks }, (_, i) => i + 1)
+      // Default to only Week 1 unless more are specified to avoid counting unplayed weeks
+      // For current season, only include completed weeks
+      weeksToFetch = [1] // Start with Week 1, user can select more weeks if needed
     }
     
     console.log(`[Matchups API] Year ${year} has ${totalWeeks} total weeks available`)
@@ -113,6 +114,12 @@ export async function GET(request: NextRequest) {
           // Determine winner
           const team1Score = parseFloat(team1.score || '0')
           const team2Score = parseFloat(team2.score || '0')
+          
+          // Skip matchups that haven't been played (both scores are 0)
+          if (team1Score === 0 && team2Score === 0) {
+            console.log(`[Matchups API] Week ${week}: Skipping unplayed matchup between ${team1.id} and ${team2.id}`)
+            return
+          }
           
           let team1Result: 'W' | 'L' | 'T'
           let team2Result: 'W' | 'L' | 'T'

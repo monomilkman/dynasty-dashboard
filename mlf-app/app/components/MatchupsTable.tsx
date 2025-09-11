@@ -39,7 +39,7 @@ type SortField = keyof Pick<TeamMatchupSummary, 'manager' | 'teamName' | 'wins' 
 type SortDirection = 'asc' | 'desc' | null
 
 export default function MatchupsTable({ teams, selectedWeeks }: MatchupsTableProps) {
-  const [sortField, setSortField] = useState<SortField>('winPercentage')
+  const [sortField, setSortField] = useState<SortField>('wins')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [matchupsData, setMatchupsData] = useState<TeamMatchupSummary[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -105,6 +105,20 @@ export default function MatchupsTable({ teams, selectedWeeks }: MatchupsTablePro
   const sortedTeams = useMemo(() => {
     if (sortDirection) {
       return [...matchupsData].sort((a, b) => {
+        // When sorting by wins or losses, use multi-level sort: wins -> losses -> points for
+        if (sortField === 'wins' || sortField === 'losses') {
+          // Sort by wins first (descending)
+          const winsDiff = b.wins - a.wins
+          if (winsDiff !== 0) return winsDiff
+          
+          // If wins are equal, sort by losses (ascending - fewer losses is better)
+          const lossesDiff = a.losses - b.losses
+          if (lossesDiff !== 0) return lossesDiff
+          
+          // If both wins and losses are equal, sort by points for (descending)
+          return b.pointsFor - a.pointsFor
+        }
+
         let aValue: string | number
         let bValue: string | number
 

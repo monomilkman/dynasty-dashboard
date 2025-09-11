@@ -281,14 +281,15 @@ export function normalizeTeamData(mflData: MFLStandingsResponse, year: number): 
       
       if (detailedData) {
         // Use scraped detailed scoring data
-        startersPoints = detailedData.startersPoints || 0
-        benchPoints = detailedData.benchPoints || 0
-        offensePoints = detailedData.offensePoints || 0
-        defensePoints = detailedData.defensePoints || 0
-        totalPoints = detailedData.totalPoints || startersPoints || totalPointsFromAPI
-        potentialPoints = detailedData.potentialPoints || 0
+        startersPoints = (detailedData.startersPoints as number) || 0
+        benchPoints = (detailedData.benchPoints as number) || 0
+        offensePoints = (detailedData.offensePoints as number) || 0
+        defensePoints = (detailedData.defensePoints as number) || 0
+        totalPoints = (detailedData.totalPoints as number) || startersPoints || totalPointsFromAPI
+        potentialPoints = (detailedData.potentialPoints as number) || 0
         
         console.log(`Using detailed scoring for ${franchiseId}: S=${startersPoints}, B=${benchPoints}, O=${offensePoints}, D=${defensePoints}, T=${totalPoints}, P=${potentialPoints}`)
+        console.log(`Position breakdown for ${franchiseId}: QB=${detailedData.qbPoints}, RB=${detailedData.rbPoints}, WR=${detailedData.wrPoints}, TE=${detailedData.tePoints}`)
       } else {
         // Fallback to API data (old behavior)
         startersPoints = totalPointsFromAPI
@@ -309,17 +310,17 @@ export function normalizeTeamData(mflData: MFLStandingsResponse, year: number): 
         defensePoints,
         totalPoints,
         potentialPoints,
-        qbPoints: detailedData?.qbPoints || 0,
-        rbPoints: detailedData?.rbPoints || 0,
-        wrPoints: detailedData?.wrPoints || 0,
-        tePoints: detailedData?.tePoints || 0,
-        kPoints: detailedData?.kPoints || 0,
-        dlPoints: detailedData?.dlPoints || 0,
-        lbPoints: detailedData?.lbPoints || 0,
-        cbPoints: detailedData?.cbPoints || 0,
-        sPoints: detailedData?.sPoints || 0,
-        offenseFlexPoints: detailedData?.offenseFlexPoints || 0,
-        defenseFlexPoints: detailedData?.defenseFlexPoints || 0,
+        qbPoints: (detailedData?.qbPoints as number) || 0,
+        rbPoints: (detailedData?.rbPoints as number) || 0,
+        wrPoints: (detailedData?.wrPoints as number) || 0,
+        tePoints: (detailedData?.tePoints as number) || 0,
+        kPoints: (detailedData?.kPoints as number) || 0,
+        dlPoints: (detailedData?.dlPoints as number) || 0,
+        lbPoints: (detailedData?.lbPoints as number) || 0,
+        cbPoints: (detailedData?.cbPoints as number) || 0,
+        sPoints: (detailedData?.sPoints as number) || 0,
+        offenseFlexPoints: (detailedData?.offenseFlexPoints as number) || 0,
+        defenseFlexPoints: (detailedData?.defenseFlexPoints as number) || 0,
         year,
         // Matchup/Record data from API
         wins: parseFloat((f.h2hw as string) || '0') || 0,

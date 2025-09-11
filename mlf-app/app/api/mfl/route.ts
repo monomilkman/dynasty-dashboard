@@ -550,8 +550,8 @@ export async function GET(request: NextRequest) {
             lbPoints: positionBreakdown.lbPoints,
             cbPoints: positionBreakdown.cbPoints,
             sPoints: positionBreakdown.sPoints,
-            offenseFlexPoints: 0, // Calculate from flex players if needed
-            defenseFlexPoints: 0  // Calculate from flex players if needed
+            offenseFlexPoints: positionBreakdown.offenseFlexPoints || 0,
+            defenseFlexPoints: positionBreakdown.defenseFlexPoints || 0
           }
         }).filter(Boolean)
       }

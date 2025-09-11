@@ -55,7 +55,7 @@ export function calculateOffensiveRankings(teams: Team[]): TeamRanking[] {
     teamName: team.teamName,
     manager: team.manager,
     rank: 0,
-    value: team.offensePoints
+    value: team.startersPoints || team.offensePoints // Use starter points as requested, fallback to offense points
   }))
 
   rankings.sort((a, b) => b.value - a.value)
@@ -83,7 +83,9 @@ export function calculateDefensiveRankings(teams: Team[]): TeamRanking[] {
 
 export function calculateEfficiencyRankings(teams: Team[]): TeamRanking[] {
   const rankings = teams.map(team => {
-    const efficiency = team.potentialPoints > 0 ? (team.startersPoints / team.potentialPoints) : 0
+    const efficiency = (team.potentialPoints > 0 && team.startersPoints > 0) 
+      ? (team.startersPoints / team.potentialPoints) 
+      : 0
     return {
       teamId: team.id,
       teamName: team.teamName,
@@ -220,7 +222,7 @@ export function formatRankingValue(value: number, categoryId: string): string {
     case 'defense':
       return value.toFixed(2)
     case 'differential':
-      return (value >= 0 ? '+' : '') + value.toFixed(1)
+      return (value >= 0 ? '+' : '') + value.toFixed(2)
     default:
       return value.toFixed(2)
   }
