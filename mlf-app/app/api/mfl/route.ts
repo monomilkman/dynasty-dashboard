@@ -565,8 +565,11 @@ export async function GET(request: NextRequest) {
           let officialMFLScoring = null
           
           try {
+            // Get the latest week for weeklyResults fetch
+            const currentLatestWeek = await getLatestAvailableWeek(year, leagueId)
+            
             // Try to fetch weeklyResults for more accurate starter identification
-            const weeklyResults = await fetchWeeklyResults(year, leagueId, latestWeek.toString())
+            const weeklyResults = await fetchWeeklyResults(year, leagueId, currentLatestWeek.toString())
             
             // Extract official starter IDs using shouldStart field
             const officialStarterIds = extractStarterIds(weeklyResults, franchiseId)
@@ -664,12 +667,15 @@ export async function GET(request: NextRequest) {
           
           // Enhanced comparison logging with official MFL values if available
           if (DEBUG_CONFIG.enabled) {
-            const comparisonValues = officialMFLScoring || 
-              (franchiseId === '0001' ? {
-                bench: 134.08, // Expected MFL value from screenshot
-                potential: 251.77, // Expected MFL value from screenshot  
-                starters: startersPoints
-              } : null)
+            const comparisonValues = officialMFLScoring ? {
+              bench: officialMFLScoring.benchPoints,
+              potential: officialMFLScoring.potentialPoints,
+              starters: officialMFLScoring.startersPoints
+            } : (franchiseId === '0001' ? {
+              bench: 134.08, // Expected MFL value from screenshot
+              potential: 251.77, // Expected MFL value from screenshot  
+              starters: startersPoints
+            } : null)
             
             if (comparisonValues) {
               logMFLComparisonDebug(franchiseId, {
