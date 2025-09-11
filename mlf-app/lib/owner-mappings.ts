@@ -13,7 +13,7 @@ export interface OwnerMapping {
 // 2025 Season Owner Mappings (Current Season)
 export const OWNER_MAPPINGS_2025: OwnerMapping = {
   '0001': 'Ryan Monaco', // Owner of franchise 1
-  '0002': 'Damian Kruhmin', // Owner of franchise 2
+  '0002': 'Greg Vizzacco', // Owner of franchise 2
   '0003': 'Joe Stankard', // Owner of franchise 3
   '0004': 'Andre Laffitte', // Owner of franchise 4
   '0005': 'Brian Tutino', // Owner of franchise 5
