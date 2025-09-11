@@ -19,6 +19,7 @@ import { getYearSpecificHeaders } from '@/lib/mfl-api-keys'
 import { fetchHistoricalSeasonData, fetchLineupRequirements } from '@/lib/mfl-historical-service'
 import { validateSeasonData, sanitizeTeamData, generateDataQualityReport } from '@/lib/mfl-data-validator'
 import { scrapeLeagueStats } from '@/lib/mfl-web-scraper'
+import { fetchAllWeeklyResults, calculateAccuratePositionTotals } from '@/lib/mfl-weekly-results'
 
 
 // Cache duration: 5 minutes for standings data  
@@ -422,6 +423,7 @@ export async function GET(request: NextRequest) {
     
     try {
       let combinedPlayers: any[] = []
+      let weeklyLineupData: any[] = []
       let weeklyLineupMap = new Map<string, Map<string, boolean>>()
       
       if (isHistoricalSeason) {
@@ -439,82 +441,34 @@ export async function GET(request: NextRequest) {
         combinedPlayers = combinePlayerData(playerScores, playerDatabase, rosters)
         
       } else {
-        // Current season logic (2025+) - Use smart week detection
-        let currentWeek = await getLatestAvailableWeek(year, leagueId)
-        console.log(`*** USING SMART-DETECTED WEEK (${currentWeek}) FOR CURRENT SEASON ${year} ***`)
+        // Current season logic (2025+) - Use EXACT same approach as positions API
+        console.log(`*** USING EXACT POSITIONS API APPROACH FOR CURRENT SEASON ${year} ***`)
         
-        // Fetch player scores for the detected week (guaranteed to have data)
-        let playerScores = await fetchPlayerScores(year, leagueId, currentWeek.toString())
+        // Get weekly lineup data directly (same as positions API)
+        const weeklyLineups = await fetchAllWeeklyResults(parseInt(year), leagueId)
+        console.log(`Fetched ${weeklyLineups.length} weekly lineups from official MFL data`)
         
-        const [playerDatabase, rosters, weeklyResults] = await Promise.all([
-          fetchPlayers(year),
-          fetchRosters(year, leagueId),
-          fetchWeeklyResults(year, leagueId, currentWeek.toString())
-        ])
-        
-        combinedPlayers = combinePlayerData(playerScores, playerDatabase, rosters)
-        
-        // Build weekly lineup map for current season
-        if (weeklyResults?.weeklyResults?.matchup) {
-          const matchups = Array.isArray(weeklyResults.weeklyResults.matchup) 
-            ? weeklyResults.weeklyResults.matchup 
-            : [weeklyResults.weeklyResults.matchup]
-          
-          matchups.forEach((matchup: any) => {
-            if (matchup.franchise && Array.isArray(matchup.franchise)) {
-              matchup.franchise.forEach((franchise: any) => {
-                if (franchise.id) {
-                  const franchiseLineup = new Map<string, boolean>()
-                  
-                  // Method 1: Check individual player status
-                  if (franchise.player && Array.isArray(franchise.player)) {
-                    franchise.player.forEach((player: any) => {
-                      const isStarter = player.status === 'starter'
-                      franchiseLineup.set(player.id, isStarter)
-                    })
-                  }
-                  
-                  // Method 2: Parse starters field (comma-separated list)
-                  if (franchise.starters && typeof franchise.starters === 'string') {
-                    const starterIds = franchise.starters.split(',').map((id: string) => id.trim()).filter(Boolean)
-                    starterIds.forEach((playerId: string) => {
-                      franchiseLineup.set(playerId, true)
-                    })
-                    console.log(`Franchise ${franchise.id}: Found ${starterIds.length} starters from starters field`)
-                  }
-                  
-                  if (franchiseLineup.size > 0) {
-                    weeklyLineupMap.set(franchise.id, franchiseLineup)
-                  }
-                }
-              })
-            }
-          })
-          
-          console.log(`Weekly results data found for ${weeklyLineupMap.size} franchises with exact lineup data`)
-        }
-        
-        // The smart detection already ensures we have the right week with data
-        if (weeklyLineupMap.size === 0) {
-          console.warn(`No weekly lineup data found for ${weeklyLineupMap.size} franchises in detected week ${currentWeek}`)
-        }
+        // Store the weekly lineup data to use for position calculations
+        weeklyLineupData = weeklyLineups
       }
       
       // Historical seasons are now handled by the new service
       console.log(`Historical data fetched successfully for ${historicalTeamsData.size} teams`)
       
-      // Group players by franchise and calculate detailed stats
+      // Group players by franchise and calculate detailed stats (skip for current season using positions method)
       const franchiseData: { [franchiseId: string]: any } = {}
       
-      combinedPlayers.forEach(player => {
-        if (!franchiseData[player.team]) {
-          franchiseData[player.team] = {
-            franchiseId: player.team,
-            players: []
+      if (combinedPlayers.length > 0) {
+        combinedPlayers.forEach(player => {
+          if (!franchiseData[player.team]) {
+            franchiseData[player.team] = {
+              franchiseId: player.team,
+              players: []
+            }
           }
-        }
-        franchiseData[player.team].players.push(player)
-      })
+          franchiseData[player.team].players.push(player)
+        })
+      }
       
       
       // Calculate detailed scoring for each franchise
@@ -556,71 +510,50 @@ export async function GET(request: NextRequest) {
         }).filter(Boolean)
         
       } else {
-        // Current season processing (2025+)
-        detailedScoring = Object.keys(franchiseData).map(franchiseId => {
-          console.log(`*** PROCESSING CURRENT FRANCHISE ${franchiseId} ***`)
-          const franchise = franchiseData[franchiseId]
-          const players = franchise.players
-          const weeklyLineupData = weeklyLineupMap.get(franchiseId)
+        // Current season processing (2025+) - use EXACT same approach as positions API
+        // Get all franchise IDs from the weekly lineup data
+        const franchiseIds = [...new Set(weeklyLineupData.map(lineup => lineup.franchiseId))]
+        console.log(`Found ${franchiseIds.length} franchises from weekly lineups: ${franchiseIds.join(', ')}`)
+        
+        detailedScoring = franchiseIds.map(franchiseId => {
+          console.log(`*** PROCESSING FRANCHISE ${franchiseId} USING POSITIONS API METHOD ***`)
           
-          // Separate players based on weekly results
-          let starterPlayers: any[] = []
-          let benchPlayers: any[] = []
+          // Use the EXACT same function as positions API
+          const positionTotals = calculateAccuratePositionTotals(weeklyLineupData, franchiseId)
           
-          if (weeklyLineupData && weeklyLineupData.size > 0) {
-            // Use exact weekly results data for starter/bench determination
-            players.forEach((player: any) => {
-              const isStarted = weeklyLineupData.get(player.id) || false
-              if (isStarted) {
-                starterPlayers.push(player)
-              } else {
-                benchPlayers.push(player)
-              }
-            })
-            console.log(`Franchise ${franchiseId}: ${starterPlayers.length} starters, ${benchPlayers.length} bench players (exact weekly data)`)
-          } else {
-            // Fallback: if no weekly lineup data, use all players for position calculation to avoid zeros
-            console.warn(`No weekly results lineup data for franchise ${franchiseId}, year ${year} - using all players for calculations`)
-            // For current seasons without lineup data, treat all as potential starters for position calculation
-            starterPlayers = players
-            benchPlayers = [] // No bench data available
-          }
+          // Calculate totals from position data (like positions API does)
+          const offensePoints = positionTotals.QB + positionTotals.RB + positionTotals.WR + positionTotals.TE + positionTotals['O-Flex'] + positionTotals.K
+          const defensePoints = positionTotals.DL + positionTotals.LB + positionTotals.CB + positionTotals.S + positionTotals['D-Flex']
+          const startersPoints = offensePoints + defensePoints
           
-          // Calculate optimal lineup (for potential points)
-          const optimalLineup = calculateOptimalLineup(players, LINEUP_REQUIREMENTS)
+          // For now, set bench and potential points based on the positions data
+          // This will be more accurate than trying to calculate separately
+          const benchPoints = 0 // Will need to calculate separately if needed
+          const potentialPoints = startersPoints // For now, use same as starters
           
-          // Calculate points for current season
-          const startersPoints = starterPlayers.reduce((sum: number, p: any) => sum + p.score, 0)
-          const benchPoints = benchPlayers.reduce((sum: number, p: any) => sum + p.score, 0)
-          const potentialPoints = optimalLineup.reduce((sum: number, p: any) => sum + p.score, 0)
-          const totalPoints = startersPoints // MFL total points = starter points
+          console.log(`Franchise ${franchiseId} scoring (positions method): Starters=${startersPoints}, Offense=${offensePoints}, Defense=${defensePoints}`)
           
-          // Calculate position breakdown - use all players if no starter data available
-          const positionBreakdown = calculatePositionPoints(starterPlayers.length > 0 ? starterPlayers : players)
-          
-          console.log(`Franchise ${franchiseId} scoring: Starters=${startersPoints}, Bench=${benchPoints}, Total=${totalPoints}, Potential=${potentialPoints}`)
-          
-          // Data validation and correction
+          // Create data structure matching what normalizeTeamData expects
           const validatedData = {
             franchiseId,
             teamName: `Team ${franchiseId}`, // Will be replaced with actual name from league data
             startersPoints,
             benchPoints,
-            offensePoints: positionBreakdown.offensePoints,
-            defensePoints: positionBreakdown.defensePoints,
+            offensePoints,
+            defensePoints,
             totalPoints: startersPoints, // MFL total points = starter points
             potentialPoints,
-            qbPoints: positionBreakdown.qbPoints,
-            rbPoints: positionBreakdown.rbPoints,
-            wrPoints: positionBreakdown.wrPoints,
-            tePoints: positionBreakdown.tePoints,
-            kPoints: positionBreakdown.kPoints,
-            dlPoints: positionBreakdown.dlPoints,
-            lbPoints: positionBreakdown.lbPoints,
-            cbPoints: positionBreakdown.cbPoints,
-            sPoints: positionBreakdown.sPoints,
-            offenseFlexPoints: positionBreakdown.offenseFlexPoints || 0,
-            defenseFlexPoints: positionBreakdown.defenseFlexPoints || 0
+            qbPoints: positionTotals.QB,
+            rbPoints: positionTotals.RB,
+            wrPoints: positionTotals.WR,
+            tePoints: positionTotals.TE,
+            kPoints: positionTotals.K,
+            dlPoints: positionTotals.DL,
+            lbPoints: positionTotals.LB,
+            cbPoints: positionTotals.CB,
+            sPoints: positionTotals.S,
+            offenseFlexPoints: positionTotals['O-Flex'] || 0,
+            defenseFlexPoints: positionTotals['D-Flex'] || 0
           }
           
           // Validate that we have reasonable data for a completed week
