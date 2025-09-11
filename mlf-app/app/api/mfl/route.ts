@@ -257,18 +257,23 @@ async function aggregateWeeklyData(year: string, leagueId: string, weeks: number
 
 // Function to get current NFL week based on 2025 season schedule
 function getCurrentWeek(): number {
-  // 2025 NFL season starts September 4, 2025 (Week 1)
-  // Week 1: Sep 4-10, Week 2: Sep 11-17, etc.
   const now = new Date()
-  const currentYear = now.getFullYear()
   
   // 2025 NFL season start date (Thursday, September 4, 2025)
-  const seasonStart = new Date(currentYear, 8, 4) // Month 8 = September (0-indexed)
+  const seasonStart = new Date(2025, 8, 4) // Month 8 = September (0-indexed), year 2025
+  // Week 2 starts Thursday, September 12, 2025
+  const week2Start = new Date(2025, 8, 12)
   
   if (now < seasonStart) {
     return 1 // Preseason/before season starts
   }
   
+  // Force Week 1 until Week 2 actually begins with Thursday night game
+  if (now < week2Start) {
+    return 1 // Week 1 is still active until Week 2 games begin
+  }
+  
+  // Calculate normally after Week 2 starts
   const weeksSinceStart = Math.floor((now.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000))
   const currentWeek = weeksSinceStart + 1
   
@@ -394,11 +399,18 @@ export async function GET(request: NextRequest) {
         
       } else {
         // Current season logic (2025+)
-        const currentWeek = getCurrentWeek()
+        let currentWeek = getCurrentWeek()
         console.log(`*** USING CURRENT WEEK (${currentWeek}) FOR CURRENT SEASON ${year} ***`)
         
-        const [playerScores, playerDatabase, rosters, weeklyResults] = await Promise.all([
-          fetchPlayerScores(year, leagueId, currentWeek.toString()),
+        // Try to fetch player scores, if empty, fall back to most recent week with data
+        let playerScores = await fetchPlayerScores(year, leagueId, currentWeek.toString())
+        if (!playerScores?.playerScores?.playerScore?.length && currentWeek > 1) {
+          console.log(`No data for Week ${currentWeek}, falling back to Week ${currentWeek - 1}`)
+          currentWeek = currentWeek - 1
+          playerScores = await fetchPlayerScores(year, leagueId, currentWeek.toString())
+        }
+        
+        const [playerDatabase, rosters, weeklyResults] = await Promise.all([
           fetchPlayers(year),
           fetchRosters(year, leagueId),
           fetchWeeklyResults(year, leagueId, currentWeek.toString())
@@ -445,6 +457,51 @@ export async function GET(request: NextRequest) {
           
           console.log(`Weekly results data found for ${weeklyLineupMap.size} franchises with exact lineup data`)
         }
+        
+        // Fallback: If no lineup data found and it's 2025, try Week 1 specifically
+        if (weeklyLineupMap.size === 0 && year === '2025') {
+          console.log('No lineup data found, trying Week 1 as fallback...')
+          try {
+            const week1Results = await fetchWeeklyResults(year, leagueId, '1')
+            if (week1Results?.weeklyResults?.matchup) {
+              const matchups = Array.isArray(week1Results.weeklyResults.matchup) 
+                ? week1Results.weeklyResults.matchup 
+                : [week1Results.weeklyResults.matchup]
+              
+              matchups.forEach((matchup: any) => {
+                if (matchup.franchise && Array.isArray(matchup.franchise)) {
+                  matchup.franchise.forEach((franchise: any) => {
+                    if (franchise.id) {
+                      const franchiseLineup = new Map<string, boolean>()
+                      
+                      // Parse both methods
+                      if (franchise.player && Array.isArray(franchise.player)) {
+                        franchise.player.forEach((player: any) => {
+                          const isStarter = player.status === 'starter'
+                          franchiseLineup.set(player.id, isStarter)
+                        })
+                      }
+                      
+                      if (franchise.starters && typeof franchise.starters === 'string') {
+                        const starterIds = franchise.starters.split(',').map((id: string) => id.trim()).filter(Boolean)
+                        starterIds.forEach((playerId: string) => {
+                          franchiseLineup.set(playerId, true)
+                        })
+                      }
+                      
+                      if (franchiseLineup.size > 0) {
+                        weeklyLineupMap.set(franchise.id, franchiseLineup)
+                      }
+                    }
+                  })
+                }
+              })
+              console.log(`Week 1 fallback: Found lineup data for ${weeklyLineupMap.size} franchises`)
+            }
+          } catch (fallbackError) {
+            console.warn('Week 1 fallback failed:', fallbackError)
+          }
+        }
       }
       
       // Historical seasons are now handled by the new service
@@ -462,6 +519,7 @@ export async function GET(request: NextRequest) {
         }
         franchiseData[player.team].players.push(player)
       })
+      
       
       // Calculate detailed scoring for each franchise
       if (isHistoricalSeason) {
@@ -541,12 +599,13 @@ export async function GET(request: NextRequest) {
           const potentialPoints = optimalLineup.reduce((sum: number, p: any) => sum + p.score, 0)
           const totalPoints = startersPoints // MFL total points = starter points
           
-          // Calculate position breakdown
-          const positionBreakdown = calculatePositionPoints(starterPlayers.length > 0 ? starterPlayers : [])
+          // Calculate position breakdown - use all players if no starter data available
+          const positionBreakdown = calculatePositionPoints(starterPlayers.length > 0 ? starterPlayers : players)
           
           console.log(`Franchise ${franchiseId} scoring: Starters=${startersPoints}, Bench=${benchPoints}, Total=${totalPoints}, Potential=${potentialPoints}`)
           
-          return {
+          // Data validation and correction
+          const validatedData = {
             franchiseId,
             teamName: `Team ${franchiseId}`, // Will be replaced with actual name from league data
             startersPoints,
@@ -567,6 +626,19 @@ export async function GET(request: NextRequest) {
             offenseFlexPoints: positionBreakdown.offenseFlexPoints || 0,
             defenseFlexPoints: positionBreakdown.defenseFlexPoints || 0
           }
+          
+          // Validate that we have reasonable data for a completed week
+          if (year === '2025' && validatedData.startersPoints === 0 && validatedData.benchPoints === 0) {
+            console.warn(`Franchise ${franchiseId}: All points are zero - this may indicate missing data`)
+          }
+          
+          // Ensure potential points is at least as high as starters points
+          if (validatedData.potentialPoints < validatedData.startersPoints) {
+            console.warn(`Franchise ${franchiseId}: Potential points (${validatedData.potentialPoints}) lower than starters (${validatedData.startersPoints}) - adjusting`)
+            validatedData.potentialPoints = Math.max(validatedData.potentialPoints, validatedData.startersPoints)
+          }
+          
+          return validatedData
         }).filter(Boolean)
       }
       

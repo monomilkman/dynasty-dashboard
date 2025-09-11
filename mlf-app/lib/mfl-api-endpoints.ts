@@ -267,6 +267,12 @@ export function combinePlayerData(
   const players: Player[] = []
   
   const scoreList = playerScores.playerScores?.playerScore
+  console.log(`Combining player data: ${scoreList?.length || 0} scores, ${playerInfoMap.size} players, ${rosterStatusMap.size} roster spots`)
+  
+  if (!scoreList?.length) {
+    console.warn('No player scores found - check if correct week is being fetched')
+  }
+  
   if (Array.isArray(scoreList)) {
     scoreList.forEach(scoreData => {
     const playerInfo = playerInfoMap.get(scoreData.id)
