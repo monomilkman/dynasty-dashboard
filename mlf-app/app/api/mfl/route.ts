@@ -255,30 +255,71 @@ async function aggregateWeeklyData(year: string, leagueId: string, weeks: number
   }).sort((a, b) => b.totalPoints - a.totalPoints)
 }
 
-// Function to get current NFL week based on 2025 season schedule
+// Function to get current NFL week based on 2025 season schedule (estimate only)
 function getCurrentWeek(): number {
   const now = new Date()
   
   // 2025 NFL season start date (Thursday, September 4, 2025)
   const seasonStart = new Date(2025, 8, 4) // Month 8 = September (0-indexed), year 2025
-  // Week 2 starts Thursday, September 12, 2025
-  const week2Start = new Date(2025, 8, 12)
   
   if (now < seasonStart) {
     return 1 // Preseason/before season starts
   }
   
-  // Force Week 1 until Week 2 actually begins with Thursday night game
-  if (now < week2Start) {
-    return 1 // Week 1 is still active until Week 2 games begin
-  }
-  
-  // Calculate normally after Week 2 starts
+  // Calculate estimated week based on calendar
   const weeksSinceStart = Math.floor((now.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000))
-  const currentWeek = weeksSinceStart + 1
+  const estimatedWeek = weeksSinceStart + 1
   
   // Cap at Week 17 (regular season) + playoffs
-  return Math.max(1, Math.min(18, currentWeek))
+  return Math.max(1, Math.min(18, estimatedWeek))
+}
+
+// Cache for latest available week detection (5-minute cache during season)
+const weekDetectionCache = new Map<string, { week: number; timestamp: number }>()
+const WEEK_DETECTION_CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+
+// Permanent solution: Smart week detection that actually checks what data exists
+async function getLatestAvailableWeek(year: string, leagueId: string): Promise<number> {
+  const cacheKey = `${year}-${leagueId}`
+  
+  // Check cache first
+  const cached = weekDetectionCache.get(cacheKey)
+  if (cached && (Date.now() - cached.timestamp) < WEEK_DETECTION_CACHE_DURATION) {
+    console.log(`Using cached latest week: Week ${cached.week}`)
+    return cached.week
+  }
+  
+  console.log(`Detecting latest available week for ${year} season...`)
+  
+  // Start from estimated week and check up to one week ahead
+  const estimatedWeek = getCurrentWeek()
+  const maxCheckWeek = Math.min(estimatedWeek + 1, 18)
+  
+  // Check weeks from highest to lowest to find latest available
+  for (let week = maxCheckWeek; week >= 1; week--) {
+    try {
+      console.log(`Checking Week ${week} for data availability...`)
+      const playerScores = await fetchPlayerScores(year, leagueId, week.toString())
+      
+      if (playerScores?.playerScores?.playerScore?.length > 0) {
+        console.log(`✓ Week ${week} has ${playerScores.playerScores.playerScore.length} player scores - using this week`)
+        
+        // Cache the result
+        weekDetectionCache.set(cacheKey, { week, timestamp: Date.now() })
+        return week
+      } else {
+        console.log(`✗ Week ${week} has no player score data`)
+      }
+    } catch (error) {
+      console.log(`✗ Week ${week} fetch failed:`, error instanceof Error ? error.message : error)
+    }
+  }
+  
+  console.log(`No weeks found with data, defaulting to Week 1`)
+  
+  // Cache Week 1 as fallback
+  weekDetectionCache.set(cacheKey, { week: 1, timestamp: Date.now() })
+  return 1
 }
 
 // CORS headers helper
@@ -398,17 +439,12 @@ export async function GET(request: NextRequest) {
         combinedPlayers = combinePlayerData(playerScores, playerDatabase, rosters)
         
       } else {
-        // Current season logic (2025+)
-        let currentWeek = getCurrentWeek()
-        console.log(`*** USING CURRENT WEEK (${currentWeek}) FOR CURRENT SEASON ${year} ***`)
+        // Current season logic (2025+) - Use smart week detection
+        let currentWeek = await getLatestAvailableWeek(year, leagueId)
+        console.log(`*** USING SMART-DETECTED WEEK (${currentWeek}) FOR CURRENT SEASON ${year} ***`)
         
-        // Try to fetch player scores, if empty, fall back to most recent week with data
+        // Fetch player scores for the detected week (guaranteed to have data)
         let playerScores = await fetchPlayerScores(year, leagueId, currentWeek.toString())
-        if (!playerScores?.playerScores?.playerScore?.length && currentWeek > 1) {
-          console.log(`No data for Week ${currentWeek}, falling back to Week ${currentWeek - 1}`)
-          currentWeek = currentWeek - 1
-          playerScores = await fetchPlayerScores(year, leagueId, currentWeek.toString())
-        }
         
         const [playerDatabase, rosters, weeklyResults] = await Promise.all([
           fetchPlayers(year),
@@ -458,49 +494,9 @@ export async function GET(request: NextRequest) {
           console.log(`Weekly results data found for ${weeklyLineupMap.size} franchises with exact lineup data`)
         }
         
-        // Fallback: If no lineup data found and it's 2025, try Week 1 specifically
-        if (weeklyLineupMap.size === 0 && year === '2025') {
-          console.log('No lineup data found, trying Week 1 as fallback...')
-          try {
-            const week1Results = await fetchWeeklyResults(year, leagueId, '1')
-            if (week1Results?.weeklyResults?.matchup) {
-              const matchups = Array.isArray(week1Results.weeklyResults.matchup) 
-                ? week1Results.weeklyResults.matchup 
-                : [week1Results.weeklyResults.matchup]
-              
-              matchups.forEach((matchup: any) => {
-                if (matchup.franchise && Array.isArray(matchup.franchise)) {
-                  matchup.franchise.forEach((franchise: any) => {
-                    if (franchise.id) {
-                      const franchiseLineup = new Map<string, boolean>()
-                      
-                      // Parse both methods
-                      if (franchise.player && Array.isArray(franchise.player)) {
-                        franchise.player.forEach((player: any) => {
-                          const isStarter = player.status === 'starter'
-                          franchiseLineup.set(player.id, isStarter)
-                        })
-                      }
-                      
-                      if (franchise.starters && typeof franchise.starters === 'string') {
-                        const starterIds = franchise.starters.split(',').map((id: string) => id.trim()).filter(Boolean)
-                        starterIds.forEach((playerId: string) => {
-                          franchiseLineup.set(playerId, true)
-                        })
-                      }
-                      
-                      if (franchiseLineup.size > 0) {
-                        weeklyLineupMap.set(franchise.id, franchiseLineup)
-                      }
-                    }
-                  })
-                }
-              })
-              console.log(`Week 1 fallback: Found lineup data for ${weeklyLineupMap.size} franchises`)
-            }
-          } catch (fallbackError) {
-            console.warn('Week 1 fallback failed:', fallbackError)
-          }
+        // The smart detection already ensures we have the right week with data
+        if (weeklyLineupMap.size === 0) {
+          console.warn(`No weekly lineup data found for ${weeklyLineupMap.size} franchises in detected week ${currentWeek}`)
         }
       }
       
