@@ -415,17 +415,29 @@ export async function GET(request: NextRequest) {
           matchups.forEach((matchup: any) => {
             if (matchup.franchise && Array.isArray(matchup.franchise)) {
               matchup.franchise.forEach((franchise: any) => {
-                if (franchise.id && franchise.player) {
+                if (franchise.id) {
                   const franchiseLineup = new Map<string, boolean>()
                   
-                  if (Array.isArray(franchise.player)) {
+                  // Method 1: Check individual player status
+                  if (franchise.player && Array.isArray(franchise.player)) {
                     franchise.player.forEach((player: any) => {
                       const isStarter = player.status === 'starter'
                       franchiseLineup.set(player.id, isStarter)
                     })
                   }
                   
-                  weeklyLineupMap.set(franchise.id, franchiseLineup)
+                  // Method 2: Parse starters field (comma-separated list)
+                  if (franchise.starters && typeof franchise.starters === 'string') {
+                    const starterIds = franchise.starters.split(',').map((id: string) => id.trim()).filter(Boolean)
+                    starterIds.forEach((playerId: string) => {
+                      franchiseLineup.set(playerId, true)
+                    })
+                    console.log(`Franchise ${franchise.id}: Found ${starterIds.length} starters from starters field`)
+                  }
+                  
+                  if (franchiseLineup.size > 0) {
+                    weeklyLineupMap.set(franchise.id, franchiseLineup)
+                  }
                 }
               })
             }
@@ -513,9 +525,11 @@ export async function GET(request: NextRequest) {
             })
             console.log(`Franchise ${franchiseId}: ${starterPlayers.length} starters, ${benchPlayers.length} bench players (exact weekly data)`)
           } else {
-            // Fallback: if no weekly lineup data, treat all as bench
-            console.warn(`No weekly results lineup data for franchise ${franchiseId}, year ${year}`)
-            benchPlayers = players
+            // Fallback: if no weekly lineup data, use all players for position calculation to avoid zeros
+            console.warn(`No weekly results lineup data for franchise ${franchiseId}, year ${year} - using all players for calculations`)
+            // For current seasons without lineup data, treat all as potential starters for position calculation
+            starterPlayers = players
+            benchPlayers = [] // No bench data available
           }
           
           // Calculate optimal lineup (for potential points)

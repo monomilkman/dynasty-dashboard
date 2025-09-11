@@ -18,11 +18,19 @@ export interface RankingCategory {
 
 export function calculatePowerRankings(teams: Team[]): TeamRanking[] {
   // Power ranking is a composite score based on multiple factors
+  const maxTotalPoints = Math.max(...teams.map(t => t.totalPoints || 0))
+  
   const powerScores = teams.map(team => {
-    const efficiency = team.potentialPoints > 0 ? (team.startersPoints / team.potentialPoints) : 0
-    const winPct = team.winPercentage
-    const pointDiff = (team.pointsFor - team.pointsAgainst) / (team.pointsFor || 1)
-    const totalPointsNormalized = team.totalPoints / Math.max(...teams.map(t => t.totalPoints))
+    // Handle edge cases for each component
+    const startersPoints = team.startersPoints || 0
+    const potentialPoints = team.potentialPoints || 0
+    const efficiency = potentialPoints > 0 ? Math.min(startersPoints / potentialPoints, 1.0) : 0
+    
+    const winPct = team.winPercentage || 0
+    const pointsFor = team.pointsFor || 0
+    const pointsAgainst = team.pointsAgainst || 0
+    const pointDiff = pointsFor > 0 ? (pointsFor - pointsAgainst) / pointsFor : 0
+    const totalPointsNormalized = maxTotalPoints > 0 ? (team.totalPoints || 0) / maxTotalPoints : 0
     
     // Weighted composite score
     const powerScore = (
@@ -83,9 +91,17 @@ export function calculateDefensiveRankings(teams: Team[]): TeamRanking[] {
 
 export function calculateEfficiencyRankings(teams: Team[]): TeamRanking[] {
   const rankings = teams.map(team => {
-    const efficiency = (team.potentialPoints > 0 && team.startersPoints > 0) 
-      ? (team.startersPoints / team.potentialPoints) 
-      : 0
+    // Handle edge cases for efficiency calculation
+    const startersPoints = team.startersPoints || 0
+    const potentialPoints = team.potentialPoints || 0
+    
+    let efficiency = 0
+    if (potentialPoints > 0 && startersPoints >= 0) {
+      efficiency = startersPoints / potentialPoints
+      // Cap efficiency at 100% to handle any data anomalies
+      efficiency = Math.min(efficiency, 1.0)
+    }
+    
     return {
       teamId: team.id,
       teamName: team.teamName,

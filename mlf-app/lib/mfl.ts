@@ -250,12 +250,19 @@ export function normalizeTeamData(mflData: MFLStandingsResponse, year: number): 
     // Create lookup for detailed scoring data
     const detailedScoringLookup: { [key: string]: Record<string, unknown> } = {}
     if (Array.isArray(detailedScoring)) {
-      detailedScoring.forEach((team: unknown) => {
+      console.log(`Processing detailed scoring data for ${detailedScoring.length} teams`)
+      detailedScoring.forEach((team: unknown, index: number) => {
         const t = team as Record<string, unknown>
         if (t.franchiseId as string) {
           detailedScoringLookup[t.franchiseId as string] = t
+          if (index === 0) {
+            console.log(`Sample detailed scoring data:`, JSON.stringify(t, null, 2))
+          }
         }
       })
+      console.log(`Detailed scoring lookup created for franchise IDs: ${Object.keys(detailedScoringLookup).join(', ')}`)
+    } else {
+      console.warn('No detailed scoring data available - all teams will show zeros')
     }
     
     // Debug logging
@@ -289,8 +296,9 @@ export function normalizeTeamData(mflData: MFLStandingsResponse, year: number): 
         potentialPoints = (detailedData.potentialPoints as number) || 0
         
         console.log(`Using detailed scoring for ${franchiseId}: S=${startersPoints}, B=${benchPoints}, O=${offensePoints}, D=${defensePoints}, T=${totalPoints}, P=${potentialPoints}`)
-        console.log(`Position breakdown for ${franchiseId}: QB=${detailedData.qbPoints}, RB=${detailedData.rbPoints}, WR=${detailedData.wrPoints}, TE=${detailedData.tePoints}`)
+        console.log(`Position breakdown for ${franchiseId}: QB=${detailedData.qbPoints}, RB=${detailedData.rbPoints}, WR=${detailedData.wrPoints}, TE=${detailedData.tePoints}, DL=${detailedData.dlPoints}, LB=${detailedData.lbPoints}`)
       } else {
+        console.warn(`No detailed data found for franchise ${franchiseId}, using API fallback data`)
         // Fallback to API data (old behavior)
         startersPoints = totalPointsFromAPI
         benchPoints = 0
