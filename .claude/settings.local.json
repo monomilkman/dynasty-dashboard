@@ -55,7 +55,9 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(netstat:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx prisma:*)"
     ],
     "deny": [],
     "ask": []

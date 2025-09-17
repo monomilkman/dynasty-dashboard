@@ -263,6 +263,30 @@ export interface MFLStandingsResponse {
   }
 }
 
+// Simple function to fetch team data (used by smart-data-service and import scripts)
+export async function fetchTeamsData(year: string, leagueId: string = '46221'): Promise<Team[]> {
+  const { fetchWithRetry } = await import('./mfl-api')
+  const { getYearSpecificHeaders } = await import('./mfl-api-keys')
+
+  const baseUrl = process.env.MFL_API_BASE_URL || 'https://api.myfantasyleague.com'
+  const standingsUrl = `${baseUrl}/${year}/export?TYPE=standings&L=${leagueId}&JSON=1`
+  const leagueUrl = `${baseUrl}/${year}/export?TYPE=league&L=${leagueId}&JSON=1`
+
+  const headers = getYearSpecificHeaders(parseInt(year), process.env.MFL_USER_AGENT || 'dynasty-dashboard')
+
+  const [standingsData, leagueData] = await Promise.all([
+    fetchWithRetry(standingsUrl, { headers }),
+    fetchWithRetry(leagueUrl, { headers })
+  ])
+
+  const combinedData = {
+    standings: standingsData,
+    league: leagueData
+  }
+
+  return normalizeTeamData(combinedData as MFLStandingsResponse, parseInt(year))
+}
+
 export async function normalizeTeamData(mflData: MFLStandingsResponse, year: number): Promise<Team[]> {
   // Validate the response structure
   if (!mflData || typeof mflData !== 'object') {

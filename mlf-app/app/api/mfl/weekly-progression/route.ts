@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
           const weeklyStats = await getWeeklyStats(year, leagueId, weeksToInclude, fId)
           
           // Get position breakdown for all requested weeks
-          const positionBreakdown = await getPositionBreakdown(year, leagueId, weeksToInclude, fId)
+          const positionBreakdown = await getPositionBreakdown(year, leagueId, fId, weeksToInclude)
           
           const weeklyScores: WeeklyScore[] = []
           let cumulativeTotal = 0
@@ -132,15 +132,15 @@ export async function GET(request: NextRequest) {
                 potentialPoints: potentialPts,                // MFL's opt_pts or estimate
                 efficiency: calculateEfficiency(weekData.actualPoints, potentialPts), // Weekly efficiency
                 // Position breakdowns distributed across weeks
-                qbPoints: positionBreakdown.qb / weeksToInclude.length,
-                rbPoints: positionBreakdown.rb / weeksToInclude.length,
-                wrPoints: positionBreakdown.wr / weeksToInclude.length,
-                tePoints: positionBreakdown.te / weeksToInclude.length,
-                kPoints: positionBreakdown.k / weeksToInclude.length,
-                dlPoints: positionBreakdown.dl / weeksToInclude.length,
-                lbPoints: positionBreakdown.lb / weeksToInclude.length,
-                cbPoints: positionBreakdown.cb / weeksToInclude.length,
-                sPoints: positionBreakdown.s / weeksToInclude.length,
+                qbPoints: (positionBreakdown[0]?.positionTotals?.QB || 0) / weeksToInclude.length,
+                rbPoints: (positionBreakdown[0]?.positionTotals?.RB || 0) / weeksToInclude.length,
+                wrPoints: (positionBreakdown[0]?.positionTotals?.WR || 0) / weeksToInclude.length,
+                tePoints: (positionBreakdown[0]?.positionTotals?.TE || 0) / weeksToInclude.length,
+                kPoints: (positionBreakdown[0]?.positionTotals?.K || 0) / weeksToInclude.length,
+                dlPoints: (positionBreakdown[0]?.positionTotals?.DL || 0) / weeksToInclude.length,
+                lbPoints: (positionBreakdown[0]?.positionTotals?.LB || 0) / weeksToInclude.length,
+                cbPoints: (positionBreakdown[0]?.positionTotals?.CB || 0) / weeksToInclude.length,
+                sPoints: (positionBreakdown[0]?.positionTotals?.S || 0) / weeksToInclude.length,
                 cumulativeTotalPoints: cumulativeTotal
               })
             } else {

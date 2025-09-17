@@ -51,6 +51,7 @@ export interface LeaguePositionalData {
   teams: TeamPositionalData[]
   leagueSettings: {
     year: number
+    leagueId?: string
     rosterRequirements: {
       QB: number
       RB: number
@@ -73,6 +74,8 @@ export interface LeaguePositionalData {
       rank: number
     }[]
   }
+  error?: string
+  message?: string
 }
 
 // League roster requirements by year

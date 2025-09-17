@@ -108,8 +108,7 @@ export class DatabaseService {
    */
   static async bulkInsertTeams(teams: any[]) {
     return await prisma.team.createMany({
-      data: teams,
-      skipDuplicates: true
+      data: teams
     })
   }
 
@@ -119,7 +118,6 @@ export class DatabaseService {
   static async bulkInsertWeeklyResults(results: any[]) {
     return await prisma.weeklyResult.createMany({
       data: results,
-      skipDuplicates: true
     })
   }
 
@@ -129,7 +127,6 @@ export class DatabaseService {
   static async bulkInsertPlayerScores(scores: any[]) {
     return await prisma.playerScore.createMany({
       data: scores,
-      skipDuplicates: true
     })
   }
 
@@ -139,7 +136,6 @@ export class DatabaseService {
   static async bulkInsertPositionalData(data: any[]) {
     return await prisma.positionalData.createMany({
       data,
-      skipDuplicates: true
     })
   }
 
