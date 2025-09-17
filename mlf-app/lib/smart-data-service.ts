@@ -85,7 +85,7 @@ export class SmartDataService {
       if (seasonExists) {
         // Return all weeks that exist in database
         const weeklyResults = await DatabaseService.getWeeklyResults(year)
-        const weeks = [...new Set(weeklyResults.map(r => r.week))].sort((a, b) => a - b)
+        const weeks = [...new Set(weeklyResults.map((r: any) => r.week))].sort((a: any, b: any) => a - b) as number[]
         return weeks
       }
     }

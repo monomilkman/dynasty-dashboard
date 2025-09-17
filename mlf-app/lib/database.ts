@@ -1,4 +1,4 @@
-import { PrismaClient } from './generated/prisma'
+import { PrismaClient } from '@prisma/client'
 
 // Global instance to prevent multiple connections in development
 const globalForPrisma = globalThis as unknown as {
@@ -150,11 +150,11 @@ export class DatabaseService {
         where: { year, franchiseId: team.franchiseId }
       })
 
-      const wins = weeklyResults.filter(w => w.result === 'W').length
-      const losses = weeklyResults.filter(w => w.result === 'L').length
-      const ties = weeklyResults.filter(w => w.result === 'T').length
-      const pointsFor = weeklyResults.reduce((sum, w) => sum + w.score, 0)
-      const pointsAgainst = weeklyResults.reduce((sum, w) => sum + w.opponentScore, 0)
+      const wins = weeklyResults.filter((w: any) => w.result === 'W').length
+      const losses = weeklyResults.filter((w: any) => w.result === 'L').length
+      const ties = weeklyResults.filter((w: any) => w.result === 'T').length
+      const pointsFor = weeklyResults.reduce((sum: number, w: any) => sum + w.score, 0)
+      const pointsAgainst = weeklyResults.reduce((sum: number, w: any) => sum + w.opponentScore, 0)
 
       await prisma.team.update({
         where: { id: team.id },

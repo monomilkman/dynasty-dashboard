@@ -50,3 +50,9 @@ MFL API Keys.txt
 next-env.d.ts
 
 /lib/generated/prisma
+
+# Debug logs and data samples
+debug-logs/
+data-samples/exports/
+*.db
+*.db-journal
