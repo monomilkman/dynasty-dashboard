@@ -1,0 +1,53 @@
+{
+  "timestamp": "2025-09-12T17:02:41.357Z",
+  "endpoint": "franchise-players",
+  "year": "2025",
+  "week": "YTD",
+  "franchiseId": "0005",
+  "url": "unknown",
+  "response": {
+    "franchisePlayers": [
+      {
+        "id": "17130",
+        "name": "Amos, Trey",
+        "team": "0005",
+        "position": "CB",
+        "score": 5.75,
+        "status": "bench"
+      }
+    ],
+    "starterIds": [
+      "12611",
+      "17044",
+      "13130",
+      "16161",
+      "17071",
+      "15282",
+      "14138",
+      "17222",
+      "15861",
+      "13198",
+      "13268",
+      "14210",
+      "15076",
+      "13987",
+      "15845",
+      "15859",
+      "14224",
+      "14182",
+      "16190",
+      "13697"
+    ],
+    "playersForCalculation": [
+      {
+        "id": "17130",
+        "name": "Amos, Trey",
+        "position": "CB",
+        "team": "0005",
+        "score": 5.75,
+        "status": "bench",
+        "isEligible": true
+      }
+    ]
+  }
+}

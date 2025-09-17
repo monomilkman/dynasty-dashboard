@@ -95,29 +95,60 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
     }
   }
   
+  // Create mapping from franchiseId to team record data
+  const teamRecordsMap = useMemo(() => {
+    const recordsMap = new Map()
+    teams.forEach(team => {
+      recordsMap.set(team.id, {
+        wins: team.wins || 0,
+        losses: team.losses || 0,
+        ties: team.ties || 0,
+        pointsFor: team.pointsFor || team.totalPoints || 0
+      })
+    })
+    return recordsMap
+  }, [teams])
+
   // Sort teams based on selected field
   const sortedTeams = useMemo(() => {
     if (!positionalData) return []
-    
+
     const teamsWithAvgRank = positionalData.teams.map(team => ({
       ...team,
       avgRank: calculateAverageRanking(team, positionalData).avgRank
     }))
-    
+
     if (sortDirection && sortField) {
       teamsWithAvgRank.sort((a, b) => {
         let aValue: number
         let bValue: number
-        
-        if (sortField === 'avgRank') {
+
+        if (sortField === 'record') {
+          // Multi-level sort: wins (desc) -> losses (asc) -> points for (desc)
+          const aRecord = teamRecordsMap.get(a.franchiseId) || { wins: 0, losses: 0, pointsFor: 0 }
+          const bRecord = teamRecordsMap.get(b.franchiseId) || { wins: 0, losses: 0, pointsFor: 0 }
+
+          // Primary: wins (descending)
+          if (aRecord.wins !== bRecord.wins) {
+            return bRecord.wins - aRecord.wins
+          }
+
+          // Secondary: losses (ascending - fewer losses is better)
+          if (aRecord.losses !== bRecord.losses) {
+            return aRecord.losses - bRecord.losses
+          }
+
+          // Tertiary: points for (descending)
+          return bRecord.pointsFor - aRecord.pointsFor
+        } else if (sortField === 'avgRank') {
           aValue = a.avgRank
           bValue = b.avgRank
         } else if (sortField === 'teamName') {
-          return sortDirection === 'asc' 
+          return sortDirection === 'asc'
             ? a.teamName.localeCompare(b.teamName)
             : b.teamName.localeCompare(a.teamName)
         } else if (sortField === 'manager') {
-          return sortDirection === 'asc' 
+          return sortDirection === 'asc'
             ? a.manager.localeCompare(b.manager)
             : b.manager.localeCompare(a.manager)
         } else {
@@ -126,13 +157,13 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
           aValue = a.positionTotals[positionKey] || 0
           bValue = b.positionTotals[positionKey] || 0
         }
-        
+
         return sortDirection === 'asc' ? aValue - bValue : bValue - aValue
       })
     }
-    
+
     return teamsWithAvgRank
-  }, [positionalData, sortField, sortDirection])
+  }, [positionalData, sortField, sortDirection, teamRecordsMap])
 
   const handleSort = (field: string) => {
     if (sortField === field) {
@@ -152,9 +183,26 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
     if (sortField !== field) {
       return <ArrowUpDown className="ml-1 h-3 w-3" />
     }
-    return sortDirection === 'desc' 
+    return sortDirection === 'desc'
       ? <ArrowDown className="ml-1 h-3 w-3" />
       : <ArrowUp className="ml-1 h-3 w-3" />
+  }
+
+  const formatRecord = (wins: number, losses: number, ties: number) => {
+    if (ties > 0) {
+      return `${wins}-${losses}-${ties}`
+    }
+    return `${wins}-${losses}`
+  }
+
+  const getRecordStyle = (wins: number, losses: number) => {
+    if (wins > losses) {
+      return 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+    } else if (losses > wins) {
+      return 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+    } else {
+      return 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+    }
   }
   
   const handleExport = () => {
@@ -225,7 +273,97 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
     )
   }
   
-  if (!positionalData) {
+  if (!positionalData || positionalData.teams.length === 0) {
+    // Show team records even when positional data is unavailable
+    if (teams.length > 0) {
+      return (
+        <div className="space-y-6">
+          {/* Header with message */}
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Team Records
+            </h3>
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+              <p className="text-yellow-800 dark:text-yellow-200 text-sm">
+                {positionalData?.error || 'Positional data is temporarily unavailable due to API rate limits.'}
+              </p>
+              <p className="text-yellow-600 dark:text-yellow-300 text-xs mt-1">
+                Team records are still available below. Try refreshing in a few moments for position data.
+              </p>
+            </div>
+          </div>
+
+          {/* Records-only table */}
+          <div className="overflow-x-auto w-full min-w-[800px]">
+            <table className="w-full border border-gray-200 dark:border-gray-700">
+              <thead>
+                <tr className="bg-blue-600 text-white">
+                  <th className="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider border-r border-blue-500">
+                    <button
+                      onClick={() => handleSort('record')}
+                      className="flex items-center justify-center hover:text-blue-200 transition-colors"
+                    >
+                      Record
+                      {getSortIcon('record')}
+                    </button>
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border-r border-blue-500">
+                    <button
+                      onClick={() => handleSort('teamName')}
+                      className="flex items-center hover:text-blue-200 transition-colors"
+                    >
+                      Team
+                      {getSortIcon('teamName')}
+                    </button>
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider">
+                    <button
+                      onClick={() => handleSort('manager')}
+                      className="flex items-center hover:text-blue-200 transition-colors"
+                    >
+                      Manager
+                      {getSortIcon('manager')}
+                    </button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {teams.map((team, index) => {
+                  const teamRecord = teamRecordsMap.get(team.id) || { wins: 0, losses: 0, ties: 0 }
+                  return (
+                    <tr key={`${team.id}-${team.year}`} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                      <td className="px-3 py-2 text-center text-sm border-r border-gray-200 dark:border-gray-700">
+                        <span className={getRecordStyle(teamRecord.wins, teamRecord.losses)}>
+                          {formatRecord(teamRecord.wins, teamRecord.losses, teamRecord.ties)}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-sm font-medium text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700">
+                        {formatTeamDisplay(team as any, { includeYear: hasMultipleYears })}
+                      </td>
+                      <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">
+                        {team.manager}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Retry button */}
+          <div className="text-center">
+            <button
+              onClick={() => fetchPositionalData(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors inline-flex items-center"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry Positional Data
+            </button>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="space-y-6">
         <div className="text-center py-12">
@@ -301,10 +439,20 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
       </div>
       
       {/* Main table */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto w-full min-w-[1200px]">
         <table className="w-full border border-gray-200 dark:border-gray-700">
           <thead>
             <tr className="bg-blue-600 text-white">
+              <th className="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider border-r border-blue-500 min-w-24">
+                <button
+                  onClick={() => handleSort('record')}
+                  className="flex items-center justify-center hover:text-blue-200 transition-colors"
+                >
+                  Record
+                  {getSortIcon('record')}
+                </button>
+              </th>
+
               <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border-r border-blue-500 min-w-48">
                 <button
                   onClick={() => handleSort('teamName')}
@@ -352,12 +500,19 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {sortedTeams.map((team, index) => {
               const avgRankData = calculateAverageRanking(team, positionalData)
-              
+              const teamRecord = teamRecordsMap.get(team.franchiseId) || { wins: 0, losses: 0, ties: 0 }
+
               return (
-                <tr 
-                  key={`${team.franchiseId}-${team.year}`} 
+                <tr
+                  key={`${team.franchiseId}-${team.year}`}
                   className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
+                  <td className="px-3 py-2 text-center text-sm border-r border-gray-200 dark:border-gray-700 min-w-24">
+                    <span className={getRecordStyle(teamRecord.wins, teamRecord.losses)}>
+                      {formatRecord(teamRecord.wins, teamRecord.losses, teamRecord.ties)}
+                    </span>
+                  </td>
+
                   <td className="px-3 py-2 text-sm font-medium text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700 min-w-48">
                     {formatTeamDisplay(team as any, { includeYear: hasMultipleYears })}
                   </td>

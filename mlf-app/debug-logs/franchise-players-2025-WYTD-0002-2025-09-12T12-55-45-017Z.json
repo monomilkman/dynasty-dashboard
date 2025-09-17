@@ -1,0 +1,140 @@
+{
+  "timestamp": "2025-09-12T12:55:45.017Z",
+  "endpoint": "franchise-players",
+  "year": "2025",
+  "week": "YTD",
+  "franchiseId": "0002",
+  "url": "unknown",
+  "response": {
+    "franchisePlayers": [
+      {
+        "id": "16581",
+        "name": "Daniels, Jayden",
+        "team": "0002",
+        "position": "QB",
+        "score": 19.7,
+        "status": "bench"
+      },
+      {
+        "id": "16698",
+        "name": "Sainristil, Mike",
+        "team": "0002",
+        "position": "CB",
+        "score": 9.75,
+        "status": "bench"
+      },
+      {
+        "id": "14908",
+        "name": "McKinney, Xavier",
+        "team": "0002",
+        "position": "S",
+        "score": 8.25,
+        "status": "bench"
+      },
+      {
+        "id": "16719",
+        "name": "Williams, Evan",
+        "team": "0002",
+        "position": "S",
+        "score": 6.5,
+        "status": "bench"
+      },
+      {
+        "id": "16644",
+        "name": "Sinnott, Ben",
+        "team": "0002",
+        "position": "TE",
+        "score": 1.7,
+        "status": "taxi"
+      },
+      {
+        "id": "17075",
+        "name": "Golden, Matthew",
+        "team": "0002",
+        "position": "WR",
+        "score": 1.4,
+        "status": "bench"
+      }
+    ],
+    "starterIds": [
+      "16581",
+      "14852",
+      "16747",
+      "17075",
+      "16627",
+      "16615",
+      "16214",
+      "14717",
+      "16233",
+      "14940",
+      "15355",
+      "15890",
+      "16383",
+      "16698",
+      "16241",
+      "13737",
+      "16719",
+      "14909",
+      "15777",
+      "17123",
+      "14889",
+      "15394"
+    ],
+    "playersForCalculation": [
+      {
+        "id": "16581",
+        "name": "Daniels, Jayden",
+        "position": "QB",
+        "team": "0002",
+        "score": 19.7,
+        "status": "starter",
+        "isEligible": true
+      },
+      {
+        "id": "16698",
+        "name": "Sainristil, Mike",
+        "position": "CB",
+        "team": "0002",
+        "score": 9.75,
+        "status": "starter",
+        "isEligible": true
+      },
+      {
+        "id": "14908",
+        "name": "McKinney, Xavier",
+        "position": "S",
+        "team": "0002",
+        "score": 8.25,
+        "status": "bench",
+        "isEligible": true
+      },
+      {
+        "id": "16719",
+        "name": "Williams, Evan",
+        "position": "S",
+        "team": "0002",
+        "score": 6.5,
+        "status": "starter",
+        "isEligible": true
+      },
+      {
+        "id": "16644",
+        "name": "Sinnott, Ben",
+        "position": "TE",
+        "team": "0002",
+        "score": 1.7,
+        "status": "bench",
+        "isEligible": false
+      },
+      {
+        "id": "17075",
+        "name": "Golden, Matthew",
+        "position": "WR",
+        "team": "0002",
+        "score": 1.4,
+        "status": "starter",
+        "isEligible": true
+      }
+    ]
+  }
+}

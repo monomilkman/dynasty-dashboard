@@ -66,9 +66,35 @@ export function calculateBenchPoints(
 
 /**
  * Calculate accurate potential points using optimal lineup
- * Potential points = maximum possible score using best available players per position
+ * First tries to use MFL's opt_pts, then shouldStart field, then manual calculation
  */
 export function calculatePotentialPoints(
+  allPlayers: PlayerCalculationInfo[],
+  requirements: LineupRequirements = MFL_LINEUP_REQUIREMENTS,
+  mflOptimalPoints?: number,
+  shouldStartPlayers?: PlayerCalculationInfo[]
+): { potentialPoints: number; optimalLineup: PlayerCalculationInfo[] } {
+  // Step 1: Use MFL's opt_pts if available (preferred)
+  if (mflOptimalPoints && mflOptimalPoints > 0) {
+    const optimalLineup = shouldStartPlayers || buildOptimalLineupManually(allPlayers, requirements).optimalLineup
+    return { potentialPoints: mflOptimalPoints, optimalLineup }
+  }
+  
+  // Step 2: Use shouldStart field if available
+  if (shouldStartPlayers && shouldStartPlayers.length > 0) {
+    const potentialPoints = shouldStartPlayers.reduce((sum, player) => sum + player.score, 0)
+    return { potentialPoints, optimalLineup: shouldStartPlayers }
+  }
+  
+  // Step 3: Fallback - build optimal lineup manually for older seasons
+  return buildOptimalLineupManually(allPlayers, requirements)
+}
+
+/**
+ * Fallback function to build optimal lineup manually
+ * Used when MFL doesn't provide opt_pts or shouldStart data
+ */
+function buildOptimalLineupManually(
   allPlayers: PlayerCalculationInfo[],
   requirements: LineupRequirements = MFL_LINEUP_REQUIREMENTS
 ): { potentialPoints: number; optimalLineup: PlayerCalculationInfo[] } {

@@ -26,8 +26,8 @@ export default function Leaderboard({ teams, selectedWeeks = [] }: LeaderboardPr
       return [...teams].sort((a, b) => {
         // Special handling for efficiency sorting
         if (sortField === 'efficiency') {
-          const aEfficiency = calculateEfficiencyValue(a.startersPoints, a.potentialPoints)
-          const bEfficiency = calculateEfficiencyValue(b.startersPoints, b.potentialPoints)
+          const aEfficiency = a.efficiency || 0  // Use the efficiency field from Team interface
+          const bEfficiency = b.efficiency || 0  // Use the efficiency field from Team interface
           return sortDirection === 'asc' ? aEfficiency - bEfficiency : bEfficiency - aEfficiency
         }
         
@@ -72,10 +72,11 @@ export default function Leaderboard({ teams, selectedWeeks = [] }: LeaderboardPr
       : <ArrowUp className="ml-1 h-3 w-3" />
   }
 
-  const calculateEfficiencyValue = (actualPoints: number, potentialPoints: number) => {
-    if (potentialPoints === 0) return 0
-    return (actualPoints / potentialPoints) * 100
-  }
+  // Removed - now using the efficiency field from Team interface
+  // const calculateEfficiencyValue = (actualPoints: number, potentialPoints: number) => {
+  //   if (potentialPoints === 0) return 0
+  //   return (actualPoints / potentialPoints) * 100
+  // }
 
   const getRankStyle = (index: number) => {
     if (index === 0) return 'bg-yellow-100 text-yellow-800'  // Gold
@@ -231,7 +232,7 @@ export default function Leaderboard({ teams, selectedWeeks = [] }: LeaderboardPr
                 {formatPoints(team.potentialPoints)}
               </td>
               <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-green-600 font-medium">
-                {formatEfficiency(team.startersPoints, team.potentialPoints)}
+                {team.efficiency ? `${team.efficiency}%` : '0.0%'}
               </td>
             </tr>
           ))}

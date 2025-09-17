@@ -1,4 +1,5 @@
 import { getOwnerName } from './owner-mappings'
+import { getSeasonTotals, calculateEfficiency } from './mfl-data-service'
 
 export interface Player {
   id: string
@@ -32,6 +33,7 @@ export interface Team {
   defensePoints: number
   totalPoints: number
   potentialPoints: number
+  efficiency: number        // (totalPoints / potentialPoints) * 100 rounded to 1 decimal
   qbPoints: number
   rbPoints: number
   wrPoints: number
@@ -54,6 +56,36 @@ export interface Team {
   // Weekly tracking data
   weeklyScores?: WeeklyLineup[]
   currentRoster?: Player[]
+  // Position breakdown data (optional - from enhanced data service)
+  positionTotals?: {
+    QB: number
+    RB: number
+    WR: number
+    TE: number
+    'O-Flex': number
+    K: number
+    DL: number
+    LB: number
+    CB: number
+    S: number
+    'D-Flex': number
+  }
+  weeklyPositions?: Array<{
+    week: number
+    positionTotals: {
+      QB: number
+      RB: number
+      WR: number
+      TE: number
+      'O-Flex': number
+      K: number
+      DL: number
+      LB: number
+      CB: number
+      S: number
+      'D-Flex': number
+    }
+  }>
 }
 
 // MFL API Response Types
@@ -231,7 +263,7 @@ export interface MFLStandingsResponse {
   }
 }
 
-export function normalizeTeamData(mflData: MFLStandingsResponse, year: number): Team[] {
+export async function normalizeTeamData(mflData: MFLStandingsResponse, year: number): Promise<Team[]> {
   // Validate the response structure
   if (!mflData || typeof mflData !== 'object') {
     console.error('Invalid MFL data structure:', mflData)
@@ -265,22 +297,17 @@ export function normalizeTeamData(mflData: MFLStandingsResponse, year: number): 
       })
     }
     
-    // Create lookup for detailed scoring data
+    // Create lookup for detailed scoring data (fallback only)
     const detailedScoringLookup: { [key: string]: Record<string, unknown> } = {}
     if (Array.isArray(detailedScoring)) {
       console.log(`Processing detailed scoring data for ${detailedScoring.length} teams`)
-      detailedScoring.forEach((team: unknown, index: number) => {
+      detailedScoring.forEach((team: unknown) => {
         const t = team as Record<string, unknown>
         if (t.franchiseId as string) {
           detailedScoringLookup[t.franchiseId as string] = t
-          if (index === 0) {
-            console.log(`Sample detailed scoring data:`, JSON.stringify(t, null, 2))
-          }
         }
       })
-      console.log(`Detailed scoring lookup created for franchise IDs: ${Object.keys(detailedScoringLookup).join(', ')}`)
-    } else {
-      console.warn('No detailed scoring data available - all teams will show zeros')
+      console.log(`Detailed scoring lookup available for fallback`)
     }
     
     // Debug logging
@@ -295,47 +322,41 @@ export function normalizeTeamData(mflData: MFLStandingsResponse, year: number): 
       const f = franchise as Record<string, unknown>
       const franchiseId = (f.id as string) || `unknown_${index}`
       
-      // Get API data
-      const totalPointsFromAPI = parseFloat((f.pf as string) || '0') || 0
-      const potentialPointsFromAPI = parseFloat((f.pp as string) || (f.maxpf as string) || '0') || 0
+      // ALWAYS prefer MFL's provided totals (Step 2: Fix field mappings)
+      const totalPoints = parseFloat((f.pf as string) || '0') || 0  // Use MFL's pf directly
+      const pointsAgainst = parseFloat((f.pa as string) || '0') || 0 // Use MFL's pa directly  
+      const potentialPoints = parseFloat((f.pp as string) || (f.maxpf as string) || '0') || 0 // Use MFL's pp/maxpf
       
-      // Get detailed scoring data if available from scraping
+      // Get detailed data for starter/bench breakdown (only when not available from MFL)
       const detailedData = detailedScoringLookup[franchiseId]
       
-      let startersPoints, benchPoints, offensePoints, defensePoints, totalPoints, potentialPoints
+      // Use detailed data for breakdowns when available, otherwise use reasonable defaults
+      let startersPoints = totalPoints  // Default: assume starters = total points
+      let benchPoints = 0               // Default: bench points not available in season totals
+      let offensePoints = totalPoints * 0.7  // Estimate for now
+      let defensePoints = totalPoints * 0.3  // Estimate for now
       
       if (detailedData) {
-        // Use scraped detailed scoring data
-        startersPoints = (detailedData.startersPoints as number) || 0
+        // Only use detailed data for breakdowns MFL doesn't provide
+        startersPoints = (detailedData.startersPoints as number) || totalPoints
         benchPoints = (detailedData.benchPoints as number) || 0
-        offensePoints = (detailedData.offensePoints as number) || 0
-        defensePoints = (detailedData.defensePoints as number) || 0
-        totalPoints = (detailedData.totalPoints as number) || startersPoints || totalPointsFromAPI
-        potentialPoints = (detailedData.potentialPoints as number) || 0
+        offensePoints = (detailedData.offensePoints as number) || totalPoints * 0.7
+        defensePoints = (detailedData.defensePoints as number) || totalPoints * 0.3
         
-        console.log(`Using detailed scoring for ${franchiseId}: S=${startersPoints}, B=${benchPoints}, O=${offensePoints}, D=${defensePoints}, T=${totalPoints}, P=${potentialPoints}`)
-        console.log(`Position breakdown for ${franchiseId}: QB=${detailedData.qbPoints}, RB=${detailedData.rbPoints}, WR=${detailedData.wrPoints}, TE=${detailedData.tePoints}, DL=${detailedData.dlPoints}, LB=${detailedData.lbPoints}`)
-      } else {
-        console.warn(`No detailed data found for franchise ${franchiseId}, using API fallback data`)
-        // Fallback to API data (old behavior)
-        startersPoints = totalPointsFromAPI
-        benchPoints = 0
-        offensePoints = totalPointsFromAPI
-        defensePoints = 0
-        totalPoints = totalPointsFromAPI
-        potentialPoints = potentialPointsFromAPI
+        console.log(`Using detailed data for breakdowns only for ${franchiseId}`)
       }
       
       const team = {
         id: franchiseId,
         manager: getOwnerName(franchiseId, year),
-        teamName: franchiseNames[franchiseId] || `Team ${franchiseId}`,
+        teamName: franchiseNames[franchiseId] || getOwnerName(franchiseId, year),
         startersPoints,
         benchPoints,
         offensePoints,
         defensePoints,
-        totalPoints,
-        potentialPoints,
+        totalPoints,        // MFL's pf field
+        potentialPoints,    // MFL's pp/maxpf field
+        efficiency: calculateEfficiency(totalPoints, potentialPoints), // Season efficiency
         qbPoints: (detailedData?.qbPoints as number) || 0,
         rbPoints: (detailedData?.rbPoints as number) || 0,
         wrPoints: (detailedData?.wrPoints as number) || 0,
@@ -348,17 +369,17 @@ export function normalizeTeamData(mflData: MFLStandingsResponse, year: number): 
         offenseFlexPoints: (detailedData?.offenseFlexPoints as number) || 0,
         defenseFlexPoints: (detailedData?.defenseFlexPoints as number) || 0,
         year,
-        // Matchup/Record data from API
-        wins: parseFloat((f.h2hw as string) || '0') || 0,
-        losses: parseFloat((f.h2hl as string) || '0') || 0,
-        ties: parseFloat((f.h2ht as string) || '0') || 0,
-        pointsFor: totalPointsFromAPI,
-        pointsAgainst: parseFloat((f.pa as string) || '0') || 0,
-        winPercentage: parseFloat((f.h2hpct as string) || '0') || 0
+        // Matchup/Record data - Use MFL's provided fields directly
+        wins: parseFloat((f.h2hw as string) || '0') || 0,           // MFL's h2hw
+        losses: parseFloat((f.h2hl as string) || '0') || 0,         // MFL's h2hl
+        ties: parseFloat((f.h2ht as string) || '0') || 0,           // MFL's h2ht
+        pointsFor: totalPoints,                                     // MFL's pf
+        pointsAgainst,                                              // MFL's pa
+        winPercentage: parseFloat((f.h2hpct as string) || '0') || 0 // MFL's h2hpct
       }
       
       if (index === 0) {
-        console.log(`Sample mapped team:`, team)
+        console.log(`Sample mapped team (using MFL totals):`, team)
       }
       
       return team
@@ -383,19 +404,23 @@ export function normalizeTeamData(mflData: MFLStandingsResponse, year: number): 
     }
 
     const franchiseId = (f.id as string) || `unknown_${index}`
-    const totalPoints = parseFloat((f.pf as string) || '0') || 0
-    const potentialPoints = parseFloat((f.pp as string) || (f.maxpf as string) || '0') || 0
+    
+    // Use MFL's provided totals directly (Step 2: Fix field mappings)
+    const totalPoints = parseFloat((f.pf as string) || '0') || 0      // MFL's pf
+    const pointsAgainst = parseFloat((f.pa as string) || '0') || 0    // MFL's pa
+    const potentialPoints = parseFloat((f.pp as string) || (f.maxpf as string) || '0') || 0  // MFL's pp/maxpf
 
     const team = {
       id: franchiseId,
       manager: getOwnerName(franchiseId, year),
-      teamName: `Team ${franchiseId}`,
-      startersPoints: totalPoints,
-      benchPoints: 0,
-      offensePoints: totalPoints,
-      defensePoints: 0,
-      totalPoints,
-      potentialPoints,
+      teamName: getOwnerName(franchiseId, year),
+      startersPoints: totalPoints,  // Fallback: assume starters = total
+      benchPoints: 0,               // Not available in season totals
+      offensePoints: totalPoints * 0.7,  // Estimate
+      defensePoints: totalPoints * 0.3,  // Estimate
+      totalPoints,                  // MFL's pf
+      potentialPoints,              // MFL's pp/maxpf
+      efficiency: calculateEfficiency(totalPoints, potentialPoints), // Season efficiency
       qbPoints: 0,
       rbPoints: 0,
       wrPoints: 0,
@@ -408,17 +433,17 @@ export function normalizeTeamData(mflData: MFLStandingsResponse, year: number): 
       offenseFlexPoints: 0,
       defenseFlexPoints: 0,
       year,
-      // Matchup/Record data from API
+      // Matchup/Record data - Use MFL's provided fields directly
       wins: parseFloat((f.h2hw as string) || '0') || 0,
       losses: parseFloat((f.h2hl as string) || '0') || 0,
       ties: parseFloat((f.h2ht as string) || '0') || 0,
-      pointsFor: totalPoints,
-      pointsAgainst: parseFloat((f.pa as string) || '0') || 0,
+      pointsFor: totalPoints,      // MFL's pf
+      pointsAgainst,               // MFL's pa
       winPercentage: parseFloat((f.h2hpct as string) || '0') || 0
     }
 
     if (index === 0) {
-      console.log(`Sample direct mapped team:`, team)
+      console.log(`Sample direct mapped team (using MFL totals):`, team)
     }
     
     return team

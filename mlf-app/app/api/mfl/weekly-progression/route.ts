@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { fetchAllWeeklyResults, fetchPlayerMappings } from '@/lib/mfl-weekly-results'
 import { getOwnerName } from '@/lib/owner-mappings'
 import { getWeeksForProgression, getSeasonStatusDescription } from '@/lib/season-utils'
+// Import the new unified data service
+import { getWeeklyStats, calculateEfficiency, getPositionBreakdown } from '@/lib/mfl-data-service'
 
 export interface WeeklyScore {
   week: number
@@ -11,6 +13,7 @@ export interface WeeklyScore {
   offensePoints: number
   defensePoints: number
   potentialPoints: number
+  efficiency: number        // (totalPoints / potentialPoints) * 100 rounded to 1 decimal
   qbPoints: number
   rbPoints: number
   wrPoints: number
@@ -88,7 +91,7 @@ export async function GET(request: NextRequest) {
         })
       }
 
-      // Fetch real weekly progression data from MFL API
+      // Use new unified data service (Step 2: Use MFL's provided fields)
       const progressionData: TeamProgression[] = []
 
       // Create data for specific franchise or all franchises
@@ -96,78 +99,52 @@ export async function GET(request: NextRequest) {
         ? [franchiseId] 
         : Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(4, '0'))
       
-      console.log(`[Weekly Progression API] Processing ${franchiseIds.length} franchises for ${seasonStatus}`)
+      console.log(`[Weekly Progression API] Processing ${franchiseIds.length} franchises using MFL data service`)
 
       for (const fId of franchiseIds) {
-        const weeklyScores: WeeklyScore[] = []
-        let cumulativeTotal = 0
-
-        // For each week requested, fetch real data from MFL API
-        for (const week of weeksToInclude) {
-          try {
-            // Fetch weekly results for this week
-            const weeklyResultsUrl = `https://api.myfantasyleague.com/${year}/export?TYPE=weeklyResults&L=${leagueId}&W=${week}&JSON=1`
-            const weeklyResponse = await fetch(weeklyResultsUrl, { headers })
+        try {
+          // Get weekly stats using MFL's provided fields (opt_pts, score, etc.)
+          const weeklyStats = await getWeeklyStats(year, leagueId, weeksToInclude, fId)
+          
+          // Get position breakdown for all requested weeks
+          const positionBreakdown = await getPositionBreakdown(year, leagueId, weeksToInclude, fId)
+          
+          const weeklyScores: WeeklyScore[] = []
+          let cumulativeTotal = 0
+          
+          // Process each week's data
+          for (const week of weeksToInclude) {
+            const weekData = weeklyStats.find(ws => ws.week === week)
             
-            if (weeklyResponse.ok) {
-              const weeklyData = await weeklyResponse.json()
+            if (weekData) {
+              cumulativeTotal += weekData.actualPoints
               
-              // Extract team score for this week
-              let weeklyTotal = 0
-              let weeklyStarters = 0
-              let weeklyBench = 0
-              
-              // Find this franchise's data in the weekly results
-              if (weeklyData?.weeklyResults?.matchup) {
-                const matchups = Array.isArray(weeklyData.weeklyResults.matchup) 
-                  ? weeklyData.weeklyResults.matchup 
-                  : [weeklyData.weeklyResults.matchup]
-                
-                for (const matchup of matchups) {
-                  if (matchup.franchise && Array.isArray(matchup.franchise)) {
-                    const teamData = matchup.franchise.find((f: any) => f.id === fId)
-                    if (teamData) {
-                      weeklyTotal = parseFloat(teamData.score || '0')
-                      
-                      // For detailed breakdown, we'd need additional API calls
-                      // For now, use reasonable estimates
-                      weeklyStarters = weeklyTotal * 0.8
-                      weeklyBench = weeklyTotal * 0.2
-                      break
-                    }
-                  }
-                }
-              }
-              
-              cumulativeTotal += weeklyTotal
-
-              // Break down by position (estimates based on typical distributions)
-              const offenseRatio = 0.7
-              const defenseRatio = 0.3
+              // Use MFL's provided data when available, fallback to estimates
+              const potentialPts = weekData.optimalPoints || weekData.actualPoints * 1.15
               
               weeklyScores.push({
                 week,
-                totalPoints: weeklyTotal,
-                startersPoints: weeklyStarters,
-                benchPoints: weeklyBench,
-                offensePoints: weeklyTotal * offenseRatio,
-                defensePoints: weeklyTotal * defenseRatio,
-                potentialPoints: weeklyTotal * 1.15, // Potential points (could have scored 15% more)
-                qbPoints: weeklyTotal * offenseRatio * 0.3,
-                rbPoints: weeklyTotal * offenseRatio * 0.25,
-                wrPoints: weeklyTotal * offenseRatio * 0.25,
-                tePoints: weeklyTotal * offenseRatio * 0.1,
-                kPoints: weeklyTotal * offenseRatio * 0.1,
-                dlPoints: weeklyTotal * defenseRatio * 0.3,
-                lbPoints: weeklyTotal * defenseRatio * 0.4,
-                cbPoints: weeklyTotal * defenseRatio * 0.2,
-                sPoints: weeklyTotal * defenseRatio * 0.1,
+                totalPoints: weekData.actualPoints,           // MFL's score field
+                startersPoints: weekData.starterPoints,       // Calculated from starters
+                benchPoints: weekData.benchPoints,            // Calculated from nonstarters
+                offensePoints: weekData.actualPoints * 0.7,   // Estimate for now
+                defensePoints: weekData.actualPoints * 0.3,   // Estimate for now
+                potentialPoints: potentialPts,                // MFL's opt_pts or estimate
+                efficiency: calculateEfficiency(weekData.actualPoints, potentialPts), // Weekly efficiency
+                // Position breakdowns distributed across weeks
+                qbPoints: positionBreakdown.qb / weeksToInclude.length,
+                rbPoints: positionBreakdown.rb / weeksToInclude.length,
+                wrPoints: positionBreakdown.wr / weeksToInclude.length,
+                tePoints: positionBreakdown.te / weeksToInclude.length,
+                kPoints: positionBreakdown.k / weeksToInclude.length,
+                dlPoints: positionBreakdown.dl / weeksToInclude.length,
+                lbPoints: positionBreakdown.lb / weeksToInclude.length,
+                cbPoints: positionBreakdown.cb / weeksToInclude.length,
+                sPoints: positionBreakdown.s / weeksToInclude.length,
                 cumulativeTotalPoints: cumulativeTotal
               })
             } else {
-              console.warn(`[Weekly Progression API] Failed to fetch week ${week} for franchise ${fId}: ${weeklyResponse.status}`)
-              
-              // Add zero scores for weeks without data
+              // No data available for this week
               weeklyScores.push({
                 week,
                 totalPoints: 0,
@@ -176,6 +153,7 @@ export async function GET(request: NextRequest) {
                 offensePoints: 0,
                 defensePoints: 0,
                 potentialPoints: 0,
+                efficiency: 0,    // No efficiency when no data
                 qbPoints: 0,
                 rbPoints: 0,
                 wrPoints: 0,
@@ -188,11 +166,26 @@ export async function GET(request: NextRequest) {
                 cumulativeTotalPoints: cumulativeTotal
               })
             }
-          } catch (weekError) {
-            console.error(`[Weekly Progression API] Error fetching week ${week} for franchise ${fId}:`, weekError)
-            
-            // Add zero scores for failed weeks
-            weeklyScores.push({
+          }
+
+          progressionData.push({
+            franchiseId: fId,
+            manager: getOwnerName(fId, year),
+            teamName: franchiseNames[fId] || `Team ${fId}`,
+            year,
+            weeklyScores
+          })
+          
+        } catch (error) {
+          console.error(`[Weekly Progression API] Error processing franchise ${fId}:`, error)
+          
+          // Add fallback data for failed franchise
+          progressionData.push({
+            franchiseId: fId,
+            manager: getOwnerName(fId, year),
+            teamName: franchiseNames[fId] || `Team ${fId}`,
+            year,
+            weeklyScores: weeksToInclude.map(week => ({
               week,
               totalPoints: 0,
               startersPoints: 0,
@@ -200,6 +193,7 @@ export async function GET(request: NextRequest) {
               offensePoints: 0,
               defensePoints: 0,
               potentialPoints: 0,
+              efficiency: 0,    // No efficiency for failed franchise
               qbPoints: 0,
               rbPoints: 0,
               wrPoints: 0,
@@ -209,18 +203,10 @@ export async function GET(request: NextRequest) {
               lbPoints: 0,
               cbPoints: 0,
               sPoints: 0,
-              cumulativeTotalPoints: cumulativeTotal
-            })
-          }
+              cumulativeTotalPoints: 0
+            }))
+          })
         }
-
-        progressionData.push({
-          franchiseId: fId,
-          manager: getOwnerName(fId, year),
-          teamName: franchiseNames[fId] || `Team ${fId}`,
-          year,
-          weeklyScores
-        })
       }
 
       console.log(`[Weekly Progression API] Successfully generated progression data for ${progressionData.length} teams (${seasonStatus})`)
@@ -243,6 +229,7 @@ export async function GET(request: NextRequest) {
           offensePoints: 0,
           defensePoints: 0,
           potentialPoints: 0,
+          efficiency: 0,    // No efficiency for fallback data
           qbPoints: 0,
           rbPoints: 0,
           wrPoints: 0,

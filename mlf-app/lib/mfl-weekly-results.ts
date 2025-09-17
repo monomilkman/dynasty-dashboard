@@ -35,6 +35,7 @@ export interface PlayerMapping {
   id: string
   position: string
   name: string
+  status?: string
 }
 
 export interface WeeklyLineup {
@@ -211,6 +212,7 @@ export async function fetchAllWeeklyResults(year: number, leagueId: string): Pro
 
 /**
  * Fetch player mappings (ID to position/name) with retry logic
+ * Enhanced with IR/Taxi filtering and better caching
  */
 export async function fetchPlayerMappings(year: number, leagueId: string, retryCount = 0): Promise<PlayerMapping[]> {
   const url = `https://api.myfantasyleague.com/${year}/export?TYPE=players&L=${leagueId}&JSON=1`
@@ -242,11 +244,22 @@ export async function fetchPlayerMappings(year: number, leagueId: string, retryC
     
     // The players API returns different structure - need to check actual format
     if (data.players && data.players.player) {
-      return data.players.player.map((player: any) => ({
-        id: player.id,
-        position: player.position,
-        name: player.name || `${player.first_name || ''} ${player.last_name || ''}`.trim()
-      }))
+      return data.players.player
+        .filter((player: any) => {
+          // Filter out IR/Taxi/Inactive players if status is available
+          if (player.status) {
+            const status = player.status.toLowerCase()
+            return !['injured_reserve', 'ir', 'taxi', 'taxi_squad', 'inactive'].includes(status)
+          }
+          // If no status field, include all players (will be filtered by starter status later)
+          return true
+        })
+        .map((player: any) => ({
+          id: player.id,
+          position: normalizePlayerPosition(player.position),
+          name: player.name || `${player.first_name || ''} ${player.last_name || ''}`.trim(),
+          status: player.status || 'active'
+        }))
     }
     
     return []
@@ -259,6 +272,27 @@ export async function fetchPlayerMappings(year: number, leagueId: string, retryC
     }
     throw error
   }
+}
+
+/**
+ * Normalize player position codes for consistency
+ */
+function normalizePlayerPosition(position: string): string {
+  if (!position) return 'UNKNOWN'
+  
+  const positionMap: Record<string, string> = {
+    'PK': 'PK',  // Keep as PK for now, gets converted to K in calculations
+    'DE': 'DL',
+    'DT': 'DL',
+    'NT': 'DL',  // Nose Tackle -> Defensive Line
+    'OLB': 'LB',
+    'MLB': 'LB',
+    'ILB': 'LB',
+    'FS': 'S',   // Free Safety -> Safety
+    'SS': 'S'    // Strong Safety -> Safety
+  }
+  
+  return positionMap[position.toUpperCase()] || position.toUpperCase()
 }
 
 /**

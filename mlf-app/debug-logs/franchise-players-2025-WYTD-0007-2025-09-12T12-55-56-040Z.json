@@ -1,0 +1,71 @@
+{
+  "timestamp": "2025-09-12T12:55:56.040Z",
+  "endpoint": "franchise-players",
+  "year": "2025",
+  "week": "YTD",
+  "franchiseId": "0007",
+  "url": "unknown",
+  "response": {
+    "franchisePlayers": [
+      {
+        "id": "14136",
+        "name": "Samuel, Deebo",
+        "team": "0007",
+        "position": "WR",
+        "score": 21.3,
+        "status": "bench"
+      },
+      {
+        "id": "14109",
+        "name": "McLaurin, Terry",
+        "team": "0007",
+        "position": "WR",
+        "score": 9.8,
+        "status": "bench"
+      }
+    ],
+    "starterIds": [
+      "13589",
+      "15713",
+      "15710",
+      "15292",
+      "14109",
+      "13629",
+      "15799",
+      "15979",
+      "14225",
+      "13214",
+      "14893",
+      "13837",
+      "13813",
+      "13696",
+      "14180",
+      "16267",
+      "13806",
+      "15871",
+      "14136",
+      "15418",
+      "15001"
+    ],
+    "playersForCalculation": [
+      {
+        "id": "14136",
+        "name": "Samuel, Deebo",
+        "position": "WR",
+        "team": "0007",
+        "score": 21.3,
+        "status": "starter",
+        "isEligible": true
+      },
+      {
+        "id": "14109",
+        "name": "McLaurin, Terry",
+        "position": "WR",
+        "team": "0007",
+        "score": 9.8,
+        "status": "starter",
+        "isEligible": true
+      }
+    ]
+  }
+}

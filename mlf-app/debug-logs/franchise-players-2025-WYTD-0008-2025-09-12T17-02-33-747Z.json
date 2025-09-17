@@ -1,0 +1,86 @@
+{
+  "timestamp": "2025-09-12T17:02:33.747Z",
+  "endpoint": "franchise-players",
+  "year": "2025",
+  "week": "YTD",
+  "franchiseId": "0008",
+  "url": "unknown",
+  "response": {
+    "franchisePlayers": [
+      {
+        "id": "14782",
+        "name": "Love, Jordan",
+        "team": "0008",
+        "position": "QB",
+        "score": 20.88,
+        "status": "bench"
+      },
+      {
+        "id": "16677",
+        "name": "Bullard, Javon",
+        "team": "0008",
+        "position": "S",
+        "score": 8.75,
+        "status": "bench"
+      },
+      {
+        "id": "16635",
+        "name": "McCaffrey, Luke",
+        "team": "0008",
+        "position": "WR",
+        "score": 6.15,
+        "status": "bench"
+      }
+    ],
+    "starterIds": [
+      "16582",
+      "15253",
+      "15259",
+      "14833",
+      "16080",
+      "16185",
+      "14867",
+      "12956",
+      "16694",
+      "15805",
+      "14472",
+      "16013",
+      "14896",
+      "16675",
+      "16690",
+      "16018",
+      "15860",
+      "14179",
+      "16269"
+    ],
+    "playersForCalculation": [
+      {
+        "id": "14782",
+        "name": "Love, Jordan",
+        "position": "QB",
+        "team": "0008",
+        "score": 20.88,
+        "status": "bench",
+        "isEligible": true
+      },
+      {
+        "id": "16677",
+        "name": "Bullard, Javon",
+        "position": "S",
+        "team": "0008",
+        "score": 8.75,
+        "status": "bench",
+        "isEligible": true
+      },
+      {
+        "id": "16635",
+        "name": "McCaffrey, Luke",
+        "position": "WR",
+        "team": "0008",
+        "score": 6.15,
+        "status": "bench",
+        "isEligible": true
+      }
+    ]
+  }
+}

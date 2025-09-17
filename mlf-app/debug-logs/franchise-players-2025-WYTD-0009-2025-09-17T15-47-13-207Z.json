@@ -1,0 +1,714 @@
+{
+  "timestamp": "2025-09-17T15:47:13.207Z",
+  "endpoint": "franchise-players",
+  "year": "2025",
+  "week": "YTD",
+  "franchiseId": "0009",
+  "url": "unknown",
+  "response": {
+    "franchisePlayers": [
+      {
+        "id": "15287",
+        "name": "St. Brown, Amon-Ra",
+        "team": "0009",
+        "position": "WR",
+        "score": 39.2,
+        "status": "bench"
+      },
+      {
+        "id": "15836",
+        "name": "Hill, Daxton",
+        "team": "0009",
+        "position": "CB",
+        "score": 26.75,
+        "status": "bench"
+      },
+      {
+        "id": "15715",
+        "name": "Cook, James",
+        "team": "0009",
+        "position": "RB",
+        "score": 26.5,
+        "status": "bench"
+      },
+      {
+        "id": "16244",
+        "name": "Branch, Brian",
+        "team": "0009",
+        "position": "S",
+        "score": 25.5,
+        "status": "bench"
+      },
+      {
+        "id": "15256",
+        "name": "Williams, Javonte",
+        "team": "0009",
+        "position": "RB",
+        "score": 25,
+        "status": "bench"
+      },
+      {
+        "id": "14779",
+        "name": "Herbert, Justin",
+        "team": "0009",
+        "position": "QB",
+        "score": 19.78,
+        "status": "bench"
+      },
+      {
+        "id": "14600",
+        "name": "Slye, Joey",
+        "team": "0009",
+        "position": "PK",
+        "score": 19.4,
+        "status": "bench"
+      },
+      {
+        "id": "15237",
+        "name": "Lawrence, Trevor",
+        "team": "0009",
+        "position": "QB",
+        "score": 19.24,
+        "status": "bench"
+      },
+      {
+        "id": "14669",
+        "name": "Nixon, Keisean",
+        "team": "0009",
+        "position": "CB",
+        "score": 18.65,
+        "status": "bench"
+      },
+      {
+        "id": "16236",
+        "name": "To'oTo'o, Henry",
+        "team": "0009",
+        "position": "LB",
+        "score": 18.25,
+        "status": "bench"
+      },
+      {
+        "id": "15835",
+        "name": "Brisker, Jaquan",
+        "team": "0009",
+        "position": "S",
+        "score": 14.25,
+        "status": "bench"
+      },
+      {
+        "id": "17045",
+        "name": "Skattebo, Cam",
+        "team": "0009",
+        "position": "RB",
+        "score": 13.9,
+        "status": "bench"
+      },
+      {
+        "id": "15817",
+        "name": "Davis, Jordan",
+        "team": "0009",
+        "position": "DT",
+        "score": 13.25,
+        "status": "bench"
+      },
+      {
+        "id": "16239",
+        "name": "Campbell, Jack",
+        "team": "0009",
+        "position": "LB",
+        "score": 13.1,
+        "status": "bench"
+      },
+      {
+        "id": "16346",
+        "name": "Winters, Dee",
+        "team": "0009",
+        "position": "LB",
+        "score": 12.5,
+        "status": "bench"
+      },
+      {
+        "id": "16223",
+        "name": "Anderson, Will",
+        "team": "0009",
+        "position": "DE",
+        "score": 12.25,
+        "status": "bench"
+      },
+      {
+        "id": "16295",
+        "name": "Conner, Chamarri",
+        "team": "0009",
+        "position": "S",
+        "score": 12.25,
+        "status": "bench"
+      },
+      {
+        "id": "16282",
+        "name": "Turner, Kobie",
+        "team": "0009",
+        "position": "DT",
+        "score": 12.25,
+        "status": "bench"
+      },
+      {
+        "id": "15846",
+        "name": "Walker, Quay",
+        "team": "0009",
+        "position": "LB",
+        "score": 12,
+        "status": "bench"
+      },
+      {
+        "id": "13717",
+        "name": "Reid, Justin",
+        "team": "0009",
+        "position": "S",
+        "score": 11.75,
+        "status": "bench"
+      },
+      {
+        "id": "15768",
+        "name": "Pierce, Alec",
+        "team": "0009",
+        "position": "WR",
+        "score": 10.8,
+        "status": "bench"
+      },
+      {
+        "id": "16618",
+        "name": "Thomas Jr., Brian",
+        "team": "0009",
+        "position": "WR",
+        "score": 10.65,
+        "status": "bench"
+      },
+      {
+        "id": "7836",
+        "name": "Rodgers, Aaron",
+        "team": "0009",
+        "position": "QB",
+        "score": 10.42,
+        "status": "bench"
+      },
+      {
+        "id": "17103",
+        "name": "Fannin, Harold",
+        "team": "0009",
+        "position": "TE",
+        "score": 9.8,
+        "status": "bench"
+      },
+      {
+        "id": "17171",
+        "name": "Dike, Chimere",
+        "team": "0009",
+        "position": "WR",
+        "score": 8.8,
+        "status": "taxi"
+      },
+      {
+        "id": "14221",
+        "name": "Williams, Quincy",
+        "team": "0009",
+        "position": "LB",
+        "score": 8.75,
+        "status": "bench"
+      },
+      {
+        "id": "16206",
+        "name": "Wilson, Michael",
+        "team": "0009",
+        "position": "WR",
+        "score": 8.1,
+        "status": "bench"
+      },
+      {
+        "id": "14105",
+        "name": "Brown, Marquise",
+        "team": "0009",
+        "position": "WR",
+        "score": 8,
+        "status": "bench"
+      },
+      {
+        "id": "15484",
+        "name": "Cooper, Jonathon",
+        "team": "0009",
+        "position": "DE",
+        "score": 7.5,
+        "status": "bench"
+      },
+      {
+        "id": "17127",
+        "name": "Johnson, Will",
+        "team": "0009",
+        "position": "CB",
+        "score": 7.5,
+        "status": "bench"
+      },
+      {
+        "id": "16788",
+        "name": "Vele, Devaughn",
+        "team": "0009",
+        "position": "WR",
+        "score": 7.3,
+        "status": "bench"
+      },
+      {
+        "id": "13672",
+        "name": "Gesicki, Mike",
+        "team": "0009",
+        "position": "TE",
+        "score": 4.8,
+        "status": "bench"
+      },
+      {
+        "id": "17087",
+        "name": "Thornton, Dont'e",
+        "team": "0009",
+        "position": "WR",
+        "score": 4.75,
+        "status": "taxi"
+      },
+      {
+        "id": "11938",
+        "name": "Thielen, Adam",
+        "team": "0009",
+        "position": "WR",
+        "score": 4.6,
+        "status": "bench"
+      },
+      {
+        "id": "16254",
+        "name": "Kancey, Calijah",
+        "team": "0009",
+        "position": "DT",
+        "score": 3.75,
+        "status": "ir"
+      },
+      {
+        "id": "17076",
+        "name": "Bond, Isaiah",
+        "team": "0009",
+        "position": "WR",
+        "score": 2.5,
+        "status": "taxi"
+      },
+      {
+        "id": "16603",
+        "name": "Davis, Ray",
+        "team": "0009",
+        "position": "RB",
+        "score": 2.4,
+        "status": "bench"
+      },
+      {
+        "id": "12626",
+        "name": "Henry, Derrick",
+        "team": "0009",
+        "position": "RB",
+        "score": 2.3,
+        "status": "bench"
+      },
+      {
+        "id": "12676",
+        "name": "Henry, Hunter",
+        "team": "0009",
+        "position": "TE",
+        "score": 1.9,
+        "status": "bench"
+      },
+      {
+        "id": "16746",
+        "name": "Ali, Rasheen",
+        "team": "0009",
+        "position": "RB",
+        "score": 1.75,
+        "status": "bench"
+      }
+    ],
+    "starterIds": [
+      "14779",
+      "15715",
+      "15287",
+      "15368",
+      "16223",
+      "16239",
+      "16236",
+      "17127",
+      "14669",
+      "16244",
+      "15835",
+      "16282",
+      "13672",
+      "16295",
+      "15768",
+      "15256",
+      "17045",
+      "16346"
+    ],
+    "playersForCalculation": [
+      {
+        "id": "15287",
+        "name": "St. Brown, Amon-Ra",
+        "position": "WR",
+        "team": "0009",
+        "score": 39.2,
+        "status": "starter",
+        "isEligible": true
+      },
+      {
+        "id": "15836",
+        "name": "Hill, Daxton",
+        "position": "CB",
+        "team": "0009",
+        "score": 26.75,
+        "status": "bench",
+        "isEligible": true
+      },
+      {
+        "id": "15715",
+        "name": "Cook, James",
+        "position": "RB",
+        "team": "0009",
+        "score": 26.5,
+        "status": "starter",
+        "isEligible": true
+      },
+      {
+        "id": "16244",
+        "name": "Branch, Brian",
+        "position": "S",
+        "team": "0009",
+        "score": 25.5,
+        "status": "starter",
+        "isEligible": true
+      },
+      {
+        "id": "15256",
+        "name": "Williams, Javonte",
+        "position": "RB",
+        "team": "0009",
+        "score": 25,
+        "status": "starter",
+        "isEligible": true
+      },
+      {
+        "id": "14779",
+        "name": "Herbert, Justin",
+        "position": "QB",
+        "team": "0009",
+        "score": 19.78,
+        "status": "starter",
+        "isEligible": true
+      },
+      {
+        "id": "14600",
+        "name": "Slye, Joey",
+        "position": "PK",
+        "team": "0009",
+        "score": 19.4,
+        "status": "bench",
+        "isEligible": true
+      },
+      {
+        "id": "15237",
+        "name": "Lawrence, Trevor",
+        "position": "QB",
+        "team": "0009",
+        "score": 19.24,
+        "status": "bench",
+        "isEligible": true
+      },
+      {
+        "id": "14669",
+        "name": "Nixon, Keisean",
+        "position": "CB",
+        "team": "0009",
+        "score": 18.65,
+        "status": "starter",
+        "isEligible": true
+      },
+      {
+        "id": "16236",
+        "name": "To'oTo'o, Henry",
+        "position": "LB",
+        "team": "0009",
+        "score": 18.25,
+        "status": "starter",
+        "isEligible": true
+      },
+      {
+        "id": "15835",
+        "name": "Brisker, Jaquan",
+        "position": "S",
+        "team": "0009",
+        "score": 14.25,
+        "status": "starter",
+        "isEligible": true
+      },
+      {
+        "id": "17045",
+        "name": "Skattebo, Cam",
+        "position": "RB",
+        "team": "0009",
+        "score": 13.9,
+        "status": "starter",
+        "isEligible": true
+      },
+      {
+        "id": "15817",
+        "name": "Davis, Jordan",
+        "position": "DT",
+        "team": "0009",
+        "score": 13.25,
+        "status": "bench",
+        "isEligible": true
+      },
+      {
+        "id": "16239",
+        "name": "Campbell, Jack",
+        "position": "LB",
+        "team": "0009",
+        "score": 13.1,
+        "status": "starter",
+        "isEligible": true
+      },
+      {
+        "id": "16346",
+        "name": "Winters, Dee",
+        "position": "LB",
+        "team": "0009",
+        "score": 12.5,
+        "status": "starter",
+        "isEligible": true
+      },
+      {
+        "id": "16223",
+        "name": "Anderson, Will",
+        "position": "DE",
+        "team": "0009",
+        "score": 12.25,
+        "status": "starter",
+        "isEligible": true
+      },
+      {
+        "id": "16295",
+        "name": "Conner, Chamarri",
+        "position": "S",
+        "team": "0009",
+        "score": 12.25,
+        "status": "starter",
+        "isEligible": true
+      },
+      {
+        "id": "16282",
+        "name": "Turner, Kobie",
+        "position": "DT",
+        "team": "0009",
+        "score": 12.25,
+        "status": "starter",
+        "isEligible": true
+      },
+      {
+        "id": "15846",
+        "name": "Walker, Quay",
+        "position": "LB",
+        "team": "0009",
+        "score": 12,
+        "status": "bench",
+        "isEligible": true
+      },
+      {
+        "id": "13717",
+        "name": "Reid, Justin",
+        "position": "S",
+        "team": "0009",
+        "score": 11.75,
+        "status": "bench",
+        "isEligible": true
+      },
+      {
+        "id": "15768",
+        "name": "Pierce, Alec",
+        "position": "WR",
+        "team": "0009",
+        "score": 10.8,
+        "status": "starter",
+        "isEligible": true
+      },
+      {
+        "id": "16618",
+        "name": "Thomas Jr., Brian",
+        "position": "WR",
+        "team": "0009",
+        "score": 10.65,
+        "status": "bench",
+        "isEligible": true
+      },
+      {
+        "id": "7836",
+        "name": "Rodgers, Aaron",
+        "position": "QB",
+        "team": "0009",
+        "score": 10.42,
+        "status": "bench",
+        "isEligible": true
+      },
+      {
+        "id": "17103",
+        "name": "Fannin, Harold",
+        "position": "TE",
+        "team": "0009",
+        "score": 9.8,
+        "status": "bench",
+        "isEligible": true
+      },
+      {
+        "id": "17171",
+        "name": "Dike, Chimere",
+        "position": "WR",
+        "team": "0009",
+        "score": 8.8,
+        "status": "bench",
+        "isEligible": false
+      },
+      {
+        "id": "14221",
+        "name": "Williams, Quincy",
+        "position": "LB",
+        "team": "0009",
+        "score": 8.75,
+        "status": "bench",
+        "isEligible": true
+      },
+      {
+        "id": "16206",
+        "name": "Wilson, Michael",
+        "position": "WR",
+        "team": "0009",
+        "score": 8.1,
+        "status": "bench",
+        "isEligible": true
+      },
+      {
+        "id": "14105",
+        "name": "Brown, Marquise",
+        "position": "WR",
+        "team": "0009",
+        "score": 8,
+        "status": "bench",
+        "isEligible": true
+      },
+      {
+        "id": "15484",
+        "name": "Cooper, Jonathon",
+        "position": "DE",
+        "team": "0009",
+        "score": 7.5,
+        "status": "bench",
+        "isEligible": true
+      },
+      {
+        "id": "17127",
+        "name": "Johnson, Will",
+        "position": "CB",
+        "team": "0009",
+        "score": 7.5,
+        "status": "starter",
+        "isEligible": true
+      },
+      {
+        "id": "16788",
+        "name": "Vele, Devaughn",
+        "position": "WR",
+        "team": "0009",
+        "score": 7.3,
+        "status": "bench",
+        "isEligible": true
+      },
+      {
+        "id": "13672",
+        "name": "Gesicki, Mike",
+        "position": "TE",
+        "team": "0009",
+        "score": 4.8,
+        "status": "starter",
+        "isEligible": true
+      },
+      {
+        "id": "17087",
+        "name": "Thornton, Dont'e",
+        "position": "WR",
+        "team": "0009",
+        "score": 4.75,
+        "status": "bench",
+        "isEligible": false
+      },
+      {
+        "id": "11938",
+        "name": "Thielen, Adam",
+        "position": "WR",
+        "team": "0009",
+        "score": 4.6,
+        "status": "bench",
+        "isEligible": true
+      },
+      {
+        "id": "16254",
+        "name": "Kancey, Calijah",
+        "position": "DT",
+        "team": "0009",
+        "score": 3.75,
+        "status": "bench",
+        "isEligible": false
+      },
+      {
+        "id": "17076",
+        "name": "Bond, Isaiah",
+        "position": "WR",
+        "team": "0009",
+        "score": 2.5,
+        "status": "bench",
+        "isEligible": false
+      },
+      {
+        "id": "16603",
+        "name": "Davis, Ray",
+        "position": "RB",
+        "team": "0009",
+        "score": 2.4,
+        "status": "bench",
+        "isEligible": true
+      },
+      {
+        "id": "12626",
+        "name": "Henry, Derrick",
+        "position": "RB",
+        "team": "0009",
+        "score": 2.3,
+        "status": "bench",
+        "isEligible": true
+      },
+      {
+        "id": "12676",
+        "name": "Henry, Hunter",
+        "position": "TE",
+        "team": "0009",
+        "score": 1.9,
+        "status": "bench",
+        "isEligible": true
+      },
+      {
+        "id": "16746",
+        "name": "Ali, Rasheen",
+        "position": "RB",
+        "team": "0009",
+        "score": 1.75,
+        "status": "bench",
+        "isEligible": true
+      }
+    ]
+  }
+}

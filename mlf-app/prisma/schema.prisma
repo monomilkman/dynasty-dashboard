@@ -1,0 +1,186 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// League configuration and settings
+model Season {
+  id              String   @id @default(cuid())
+  year            Int      @unique
+  leagueId        String
+  leagueName      String?
+  isActive        Boolean  @default(false)
+  settings        Json?    // Store league configuration
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  teams           Team[]
+  weeklyResults   WeeklyResult[]
+  playerScores    PlayerScore[]
+  positionalData  PositionalData[]
+
+  @@map("seasons")
+}
+
+// Team/Franchise information
+model Team {
+  id            String   @id @default(cuid())
+  franchiseId   String   // MFL franchise ID (e.g., "0001")
+  year          Int
+  manager       String
+  teamName      String
+  divisionId    String?
+
+  // Season totals (calculated fields)
+  wins          Int      @default(0)
+  losses        Int      @default(0)
+  ties          Int      @default(0)
+  pointsFor     Float    @default(0)
+  pointsAgainst Float    @default(0)
+
+  // Calculated stats
+  totalPoints      Float @default(0)
+  startersPoints   Float @default(0)
+  benchPoints      Float @default(0)
+  potentialPoints  Float @default(0)
+  efficiency       Float @default(0)
+
+  // Position point totals
+  qbPoints     Float @default(0)
+  rbPoints     Float @default(0)
+  wrPoints     Float @default(0)
+  tePoints     Float @default(0)
+  kPoints      Float @default(0)
+  dlPoints     Float @default(0)
+  lbPoints     Float @default(0)
+  cbPoints     Float @default(0)
+  sPoints      Float @default(0)
+  offenseFlexPoints  Float @default(0)
+  defenseFlexPoints  Float @default(0)
+  offensePoints     Float @default(0)
+  defensePoints     Float @default(0)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  season        Season   @relation(fields: [year], references: [year])
+  weeklyResults WeeklyResult[]
+  playerScores  PlayerScore[]
+  positionalData PositionalData[]
+
+  @@unique([franchiseId, year])
+  @@index([year])
+  @@index([franchiseId])
+  @@map("teams")
+}
+
+// Weekly matchup results
+model WeeklyResult {
+  id                String   @id @default(cuid())
+  year              Int
+  week              Int
+  franchiseId       String
+  opponentId        String?
+
+  // Game result
+  score             Float
+  opponentScore     Float    @default(0)
+  result            String   // 'W', 'L', 'T'
+  isHomeTeam        Boolean  @default(false)
+
+  // MFL finalization tracking
+  mflFinalized      Boolean  @default(false)
+  lastVerified      DateTime @default(now())
+  dataChecksum      String?  // Hash for change detection
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  season            Season   @relation(fields: [year], references: [year])
+  team              Team     @relation(fields: [franchiseId, year], references: [franchiseId, year])
+
+  @@unique([year, week, franchiseId])
+  @@index([year, week])
+  @@index([franchiseId, year])
+  @@map("weekly_results")
+}
+
+// Individual player scoring data
+model PlayerScore {
+  id           String   @id @default(cuid())
+  year         Int
+  week         Int
+  playerId     String   // MFL player ID
+  playerName   String?
+  position     String?
+  franchiseId  String
+
+  // Scoring
+  score        Float
+  isStarter    Boolean  @default(false)
+
+  // Player info
+  team         String?  // NFL team
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  season       Season   @relation(fields: [year], references: [year])
+  franchise    Team     @relation(fields: [franchiseId, year], references: [franchiseId, year])
+
+  @@unique([year, week, playerId, franchiseId])
+  @@index([year, week])
+  @@index([franchiseId, year])
+  @@index([playerId])
+  @@map("player_scores")
+}
+
+// Positional scoring data by team
+model PositionalData {
+  id           String   @id @default(cuid())
+  year         Int
+  week         Int?     // null for season totals
+  franchiseId  String
+
+  // Position totals
+  qbTotal      Float    @default(0)
+  rbTotal      Float    @default(0)
+  wrTotal      Float    @default(0)
+  teTotal      Float    @default(0)
+  kTotal       Float    @default(0)
+  dlTotal      Float    @default(0)
+  lbTotal      Float    @default(0)
+  cbTotal      Float    @default(0)
+  sTotal       Float    @default(0)
+  oFlexTotal   Float    @default(0)
+  dFlexTotal   Float    @default(0)
+
+  // Calculated at time of storage
+  offenseTotal Float    @default(0)
+  defenseTotal Float    @default(0)
+  totalScore   Float    @default(0)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  season       Season   @relation(fields: [year], references: [year])
+  team         Team     @relation(fields: [franchiseId, year], references: [franchiseId, year])
+
+  @@unique([year, week, franchiseId])
+  @@index([year, week])
+  @@index([franchiseId, year])
+  @@map("positional_data")
+}

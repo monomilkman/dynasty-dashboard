@@ -34,6 +34,8 @@ import {
   logMFLComparisonDebug,
   storeCalculationDebugReport 
 } from '@/lib/mfl-debug'
+// Import the new unified data service
+import { getSeasonTotals, getWeeklyStats, calculateEfficiency } from '@/lib/mfl-data-service'
 
 
 // Cache duration: 5 minutes for standings data  
@@ -721,8 +723,37 @@ export async function GET(request: NextRequest) {
     
     console.log('Combined data structure:', Object.keys(data))
     
-    // Normalize the data using our helper
-    const normalizedTeams = normalizeTeamData(data as MFLStandingsResponse, parseInt(year))
+    // Normalize the data using our helper (now async with efficiency calculation)
+    const normalizedTeams = await normalizeTeamData(data as MFLStandingsResponse, parseInt(year))
+    
+    // Enhance with position breakdown data from the unified data service
+    try {
+      const { getPositionBreakdown } = await import('@/lib/mfl-data-service')
+      const positionData = await getPositionBreakdown(parseInt(year), leagueId, undefined, selectedWeeks)
+      
+      // Map position data to normalized teams
+      const enhancedTeams = normalizedTeams.map(team => {
+        const teamPositionData = positionData.find(pos => pos.franchiseId === team.id)
+        
+        if (teamPositionData) {
+          return {
+            ...team,
+            positionTotals: teamPositionData.positionTotals,
+            weeklyPositions: teamPositionData.weeklyPositions
+          }
+        }
+        
+        return team
+      })
+      
+      console.log(`Enhanced ${enhancedTeams.length} teams with position breakdown data`)
+      
+      // Update normalizedTeams reference
+      normalizedTeams.splice(0, normalizedTeams.length, ...enhancedTeams)
+    } catch (positionError) {
+      console.warn('Could not fetch position breakdown data:', positionError)
+      // Continue without position data - graceful degradation
+    }
     
     // Validate and sanitize the data before returning
     console.log(`*** DATA VALIDATION FOR ${year} ***`)

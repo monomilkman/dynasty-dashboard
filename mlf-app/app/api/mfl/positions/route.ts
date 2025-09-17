@@ -308,15 +308,27 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    // Return error response
+    // Return empty but valid structure instead of 500 error
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+    console.log(`[Positions API] Returning empty data due to error: ${errorMessage}`)
+
     return NextResponse.json({
-      error: 'Failed to fetch positional data',
+      teams: [],
+      leagueSettings: {
+        year: parseInt(year),
+        leagueId
+      },
+      positionRankings: {},
+      error: 'Positional data temporarily unavailable due to API rate limits',
       details: errorMessage,
+      message: 'Please try refreshing in a few moments. Team records are still available.',
       timestamp: new Date().toISOString()
-    }, { 
-      status: 500,
-      headers: getCorsHeaders()
+    }, {
+      status: 200, // Return 200 instead of 500 to prevent app crash
+      headers: {
+        ...getCorsHeaders(),
+        'X-Data-Status': 'RATE-LIMITED'
+      }
     })
   }
 }

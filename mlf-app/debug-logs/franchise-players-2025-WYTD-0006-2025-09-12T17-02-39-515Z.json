@@ -1,0 +1,86 @@
+{
+  "timestamp": "2025-09-12T17:02:39.515Z",
+  "endpoint": "franchise-players",
+  "year": "2025",
+  "week": "YTD",
+  "franchiseId": "0006",
+  "url": "unknown",
+  "response": {
+    "franchisePlayers": [
+      {
+        "id": "15779",
+        "name": "Doubs, Romeo",
+        "team": "0006",
+        "position": "WR",
+        "score": 11.8,
+        "status": "bench"
+      },
+      {
+        "id": "16215",
+        "name": "Musgrave, Luke",
+        "team": "0006",
+        "position": "TE",
+        "score": 5.2,
+        "status": "bench"
+      },
+      {
+        "id": "16184",
+        "name": "Reed, Jayden",
+        "team": "0006",
+        "position": "WR",
+        "score": 0,
+        "status": "bench"
+      }
+    ],
+    "starterIds": [
+      "16579",
+      "14800",
+      "16598",
+      "14802",
+      "14835",
+      "17074",
+      "16213",
+      "16846",
+      "14167",
+      "15808",
+      "14590",
+      "15681",
+      "15822",
+      "13307",
+      "15913",
+      "15832",
+      "16705",
+      "16679",
+      "15761"
+    ],
+    "playersForCalculation": [
+      {
+        "id": "15779",
+        "name": "Doubs, Romeo",
+        "position": "WR",
+        "team": "0006",
+        "score": 11.8,
+        "status": "bench",
+        "isEligible": true
+      },
+      {
+        "id": "16215",
+        "name": "Musgrave, Luke",
+        "position": "TE",
+        "team": "0006",
+        "score": 5.2,
+        "status": "bench",
+        "isEligible": true
+      },
+      {
+        "id": "16184",
+        "name": "Reed, Jayden",
+        "position": "WR",
+        "team": "0006",
+        "score": 0,
+        "status": "bench",
+        "isEligible": true
+      }
+    ]
+  }
+}

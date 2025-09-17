@@ -473,7 +473,7 @@ export default function Home() {
                     <TeamChart teams={filteredTeams} chartType={statFilter === 'offense' ? 'startersPoints' : statFilter === 'defense' ? 'defensePoints' : 'potentialPoints'} selectedWeeks={selectedWeeks} />
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                    <TeamChart teams={filteredTeams} chartType={statFilter === 'offense' ? 'qbPoints' : statFilter === 'defense' ? 'dlPoints' : 'benchPoints'} selectedWeeks={selectedWeeks} />
+                    <TeamChart teams={filteredTeams} chartType="efficiency" selectedWeeks={selectedWeeks} />
                   </div>
                 </div>
               </div>

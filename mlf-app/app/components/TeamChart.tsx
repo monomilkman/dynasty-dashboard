@@ -33,6 +33,7 @@ interface WeeklyScore {
   offensePoints: number
   defensePoints: number
   potentialPoints: number
+  efficiency: number        // Weekly efficiency percentage
   qbPoints: number
   rbPoints: number
   wrPoints: number
@@ -55,7 +56,7 @@ interface TeamProgression {
 
 interface TeamChartProps {
   teams: Team[]
-  chartType: 'totalPoints' | 'startersPoints' | 'benchPoints' | 'offensePoints' | 'defensePoints' | 'potentialPoints' | 'qbPoints' | 'rbPoints' | 'wrPoints' | 'tePoints' | 'kPoints' | 'dlPoints' | 'lbPoints' | 'cbPoints' | 'sPoints'
+  chartType: 'totalPoints' | 'startersPoints' | 'benchPoints' | 'offensePoints' | 'defensePoints' | 'potentialPoints' | 'efficiency' | 'qbPoints' | 'rbPoints' | 'wrPoints' | 'tePoints' | 'kPoints' | 'dlPoints' | 'lbPoints' | 'cbPoints' | 'sPoints'
   selectedWeeks: number[]
 }
 
@@ -81,6 +82,7 @@ const chartConfigs = {
   offensePoints: { title: 'Weekly Offensive Points', dataKey: 'offensePoints' as keyof WeeklyScore },
   defensePoints: { title: 'Weekly Defensive Points', dataKey: 'defensePoints' as keyof WeeklyScore },
   potentialPoints: { title: 'Weekly Potential Points', dataKey: 'potentialPoints' as keyof WeeklyScore },
+  efficiency: { title: 'Weekly Efficiency %', dataKey: 'efficiency' as keyof WeeklyScore },
   qbPoints: { title: 'Weekly QB Points', dataKey: 'qbPoints' as keyof WeeklyScore },
   rbPoints: { title: 'Weekly RB Points', dataKey: 'rbPoints' as keyof WeeklyScore },
   wrPoints: { title: 'Weekly WR Points', dataKey: 'wrPoints' as keyof WeeklyScore },
