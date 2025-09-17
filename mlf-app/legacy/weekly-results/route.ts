@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
   const franchiseId = searchParams.get('franchiseId') // Optional: get specific team's results
   
   // Determine if this is current week (use shorter cache)
-  const currentWeek = getCurrentWeek()
+  const currentWeek = await getCurrentWeek()
   const weekNum = week ? parseInt(week) : null
   const isCurrentWeek = weekNum === currentWeek
   const cacheTime = isCurrentWeek ? CURRENT_WEEK_CACHE : CACHE_DURATION
@@ -301,8 +301,8 @@ async function fetchSingleWeek(
 }
 
 // Simple function to get current week (would be better to calculate based on NFL schedule)
-function getCurrentWeek(year: number = new Date().getFullYear()): number {
+async function getCurrentWeek(year: number = new Date().getFullYear()): Promise<number> {
   // Import dynamically to avoid circular dependencies
-  const { getCurrentWeekForSeason } = require('@/lib/season-config')
+  const { getCurrentWeekForSeason } = await import('@/lib/season-config')
   return getCurrentWeekForSeason(year)
 }

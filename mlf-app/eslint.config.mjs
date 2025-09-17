@@ -18,6 +18,8 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      "legacy/**",
+      "scripts/**",
     ],
     rules: {
       "@typescript-eslint/no-explicit-any": "warn",
