@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
           // Get weekly stats using MFL's provided fields (opt_pts, score, etc.)
           const weeklyStats = await getWeeklyStats(year, leagueId, weeksToInclude, fId)
           
-          // Get position breakdown for all requested weeks
+          // Get position breakdown for all requested weeks (with correct parameter order)
           const positionBreakdown = await getPositionBreakdown(year, leagueId, fId, weeksToInclude)
           
           const weeklyScores: WeeklyScore[] = []
