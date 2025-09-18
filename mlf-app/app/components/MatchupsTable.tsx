@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useCallback, memo } from 'react'
 import { Team } from '@/lib/mfl'
 import { ArrowUpDown, ArrowUp, ArrowDown, Trophy, Target } from 'lucide-react'
 import { formatTeamDisplay, getUniqueYears, formatYearsDisplay } from '@/lib/team-utils'
 import { formatPoints, formatPercentage, formatDecimal } from '@/lib/utils'
+import { useMatchupsData } from '../hooks/useMatchupsData'
 
 interface MatchupsTableProps {
   teams: Team[]
@@ -38,7 +39,7 @@ interface TeamMatchupSummary {
 type SortField = keyof Pick<TeamMatchupSummary, 'manager' | 'teamName' | 'wins' | 'losses' | 'winPercentage' | 'pointsFor' | 'pointsAgainst'> | 'pointDifferential'
 type SortDirection = 'asc' | 'desc' | null
 
-export default function MatchupsTable({ teams, selectedWeeks }: MatchupsTableProps) {
+function MatchupsTable({ teams, selectedWeeks }: MatchupsTableProps) {
   const [sortField, setSortField] = useState<SortField>('wins')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [matchupsData, setMatchupsData] = useState<TeamMatchupSummary[]>([])
@@ -420,3 +421,5 @@ export default function MatchupsTable({ teams, selectedWeeks }: MatchupsTablePro
     </div>
   )
 }
+
+export default memo(MatchupsTable)

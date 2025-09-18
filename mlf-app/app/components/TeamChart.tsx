@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, memo } from 'react'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -14,6 +14,7 @@ import {
 import { Line } from 'react-chartjs-2'
 import { Team } from '@/lib/mfl'
 import { formatTeamDisplay, getUniqueYears } from '@/lib/team-utils'
+import { useWeeklyProgressionData } from '../hooks/useWeeklyProgressionData'
 
 ChartJS.register(
   CategoryScale,
@@ -94,51 +95,20 @@ const chartConfigs = {
   sPoints: { title: 'Weekly S Points', dataKey: 'sPoints' as keyof WeeklyScore }
 }
 
-export default function TeamChart({ teams, chartType, selectedWeeks }: TeamChartProps) {
-  const [progressionData, setProgressionData] = useState<TeamProgression[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  
+function TeamChart({ teams, chartType, selectedWeeks }: TeamChartProps) {
   const config = chartConfigs[chartType]
-  const uniqueYears = getUniqueYears(teams)
+  const uniqueYears = useMemo(() => getUniqueYears(teams), [teams])
   const hasMultipleYears = uniqueYears.length > 1
 
-  const fetchProgressionData = useCallback(async () => {
-    if (uniqueYears.length === 0) return
-    
-    setIsLoading(true)
-    setError(null)
-    
-    try {
-      const allProgressionData: TeamProgression[] = []
-      
-      // Fetch progression data for each year
-      for (const year of uniqueYears) {
-        const weeksParam = selectedWeeks.length > 0 ? selectedWeeks.join(',') : ''
-        const response = await fetch(`/api/mfl/weekly-progression?year=${year}&weeks=${weeksParam}`)
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch progression data for ${year}: ${response.status}`)
-        }
-        
-        const yearData = await response.json()
-        if (Array.isArray(yearData)) {
-          allProgressionData.push(...yearData)
-        }
-      }
-      
-      setProgressionData(allProgressionData)
-    } catch (err) {
-      console.error('Error fetching progression data:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load progression data')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [uniqueYears, selectedWeeks])
-
-  useEffect(() => {
-    fetchProgressionData()
-  }, [fetchProgressionData])
+  // Use React Query hook for data fetching
+  const {
+    data: progressionData = [],
+    isLoading,
+    error,
+  } = useWeeklyProgressionData({
+    years: uniqueYears,
+    weeks: selectedWeeks,
+  })
 
   // Loading state
   if (isLoading) {
@@ -255,3 +225,5 @@ export default function TeamChart({ teams, chartType, selectedWeeks }: TeamChart
     </div>
   )
 }
+
+export default memo(TeamChart)

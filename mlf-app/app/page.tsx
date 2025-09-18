@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Team } from '@/lib/mfl'
 import { getAvailableYears, getCurrentYear } from '@/lib/utils'
+import { useTeamsData } from './hooks/useTeamsData'
 import Leaderboard from './components/Leaderboard'
 import YearMultiSelect from './components/YearMultiSelect'
 import WeekMultiSelect from './components/WeekMultiSelect'
@@ -29,134 +30,34 @@ const availableYears = getAvailableYears(2021) // League started in 2021
 const currentYear = getCurrentYear()
 
 export default function Home() {
-  const [teams, setTeams] = useState<Team[]>([])
   const [selectedYears, setSelectedYears] = useState<number[]>([currentYear])
   const [selectedWeeks, setSelectedWeeks] = useState<number[]>([]) // Empty array means all weeks
-  const [isLoading, setIsLoading] = useState(true)
-  const [loadingProgress, setLoadingProgress] = useState<{ current: number; total: number; year?: number }>({ current: 0, total: 0 })
-  const [error, setError] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<'table' | 'charts' | 'positions' | 'matchups' | 'rankings' | 'comparison' | 'breakdown'>('table')
   const [selectedManagers, setSelectedManagers] = useState<string[]>([])
   const [statFilter, setStatFilter] = useState<'all' | 'offense' | 'defense'>('all')
 
-  const fetchTeams = useCallback(async () => {
-    try {
-      setError(null)
-      
-      // Determine which years to fetch
-      const yearsToFetch = selectedYears.length === 0 ? availableYears : selectedYears
-      
-      // Initialize progress tracking
-      setLoadingProgress({ current: 0, total: yearsToFetch.length })
-      
-      const allTeamsData: Team[] = []
-      
-      // Fetch data for each year sequentially with delays to prevent rate limiting
-      for (let i = 0; i < yearsToFetch.length; i++) {
-        const year = yearsToFetch[i]
-        
-        // Update progress
-        setLoadingProgress({ current: i, total: yearsToFetch.length, year })
-        
-        try {
-          // Build API URL with week filtering if applicable
-          const weeksParam = selectedWeeks.length > 0 ? `&weeks=${selectedWeeks.join(',')}` : ''
-          const apiUrl = `/api/mfl?year=${year}${weeksParam}`
-          
-          const response = await fetch(apiUrl)
-          
-          if (!response.ok) {
-            if (response.status === 429) {
-              console.warn(`Rate limit hit for ${year}, waiting before retry...`)
-              // Wait longer on rate limit and retry once
-              await new Promise(resolve => setTimeout(resolve, 2000))
-              const retryResponse = await fetch(apiUrl)
-              if (!retryResponse.ok) {
-                throw new Error(`Rate limit exceeded for ${year}. Please try again later.`)
-              }
-              const retryData = await retryResponse.json()
-              if (Array.isArray(retryData) && retryData.length > 0) {
-                const teamsWithYear = retryData.map((team: Team) => ({
-                  ...team,
-                  year: team.year || year
-                }))
-                allTeamsData.push(...teamsWithYear)
-              }
-            } else if (response.status >= 500) {
-              console.warn(`Server error for ${year}, skipping...`)
-              // Skip this year but continue with others
-              continue
-            } else {
-              throw new Error(`Failed to fetch team data for ${year} (${response.status})`)
-            }
-          } else {
-            const data = await response.json()
-            
-            if (data.error) {
-              console.warn(`API error for ${year}: ${data.details || data.error}`)
-              continue
-            }
-            
-            if (Array.isArray(data) && data.length > 0) {
-              // Add year to each team if not already present
-              const teamsWithYear = data.map((team: Team) => ({
-                ...team,
-                year: team.year || year
-              }))
-              allTeamsData.push(...teamsWithYear)
-            }
-          }
-        } catch (yearError) {
-          console.warn(`Error fetching ${year}:`, yearError)
-          // Continue with other years even if one fails
-        }
-        
-        // Add delay between requests to prevent rate limiting (except for last request)
-        if (i < yearsToFetch.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 500)) // 500ms delay between requests
-        }
-      }
-      
-      // Final progress update
-      setLoadingProgress({ current: yearsToFetch.length, total: yearsToFetch.length })
-      
-      if (allTeamsData.length === 0) {
-        throw new Error('No team data available for the selected years.')
-      }
-      
-      // Sort by year (descending) then by total points (descending)
-      allTeamsData.sort((a, b) => {
-        if (a.year !== b.year) {
-          return b.year - a.year
-        }
-        return b.totalPoints - a.totalPoints
-      })
-      
-      setTeams(allTeamsData)
-    } catch (error) {
-      console.error('Error fetching teams:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-      setError(`Failed to load team data: ${errorMessage}`)
-      setTeams([])
-    } finally {
-      setIsLoading(false)
-      setLoadingProgress({ current: 0, total: 0 })
-    }
-  }, [selectedYears, selectedWeeks])
+  // Use React Query for data fetching
+  const {
+    data: teams = [],
+    isLoading,
+    error,
+    isFetching,
+  } = useTeamsData({
+    years: selectedYears.length === 0 ? availableYears : selectedYears,
+    weeks: selectedWeeks,
+  })
 
-  useEffect(() => {
-    // Debounce the API call to prevent rapid requests when user changes selections
-    const timeoutId = setTimeout(() => {
-      setIsLoading(true)
-      fetchTeams()
-    }, 300) // 300ms delay
-    
-    return () => clearTimeout(timeoutId)
-  }, [selectedYears, fetchTeams])
+  // Sort teams by year (descending) then by total points (descending)
+  const sortedTeams = useMemo(() => {
+    if (!teams || teams.length === 0) return []
 
-  const handleRefresh = async () => {
-    await fetchTeams()
-  }
+    return [...teams].sort((a, b) => {
+      if (a.year !== b.year) {
+        return b.year - a.year
+      }
+      return b.totalPoints - a.totalPoints
+    })
+  }, [teams])
 
   const handleExport = (options: ExportOptions) => {
     switch (activeView) {
@@ -197,10 +98,10 @@ export default function Home() {
   // Filter teams based on selected managers
   const filteredTeams = useMemo(() => {
     if (selectedManagers.length === 0) {
-      return teams
+      return sortedTeams
     }
-    return teams.filter(team => selectedManagers.includes(team.manager))
-  }, [teams, selectedManagers])
+    return sortedTeams.filter(team => selectedManagers.includes(team.manager))
+  }, [sortedTeams, selectedManagers])
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -414,30 +315,17 @@ export default function Home() {
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
                   <p className="mt-4 text-gray-600 dark:text-gray-400">Loading team data...</p>
-                  
-                  {loadingProgress.total > 0 && (
-                    <div className="mt-4 w-80 mx-auto">
-                      <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
-                        <span>Progress</span>
-                        <span>{loadingProgress.current}/{loadingProgress.total} years</span>
+                  <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
+                    Fetching latest standings and statistics
+                  </p>
+                  {isFetching && (
+                    <div className="mt-2">
+                      <div className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
+                        <div className="animate-pulse w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                        Updating data...
                       </div>
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-500"
-                          style={{ width: `${Math.max((loadingProgress.current / loadingProgress.total) * 100, 0)}%` }}
-                        ></div>
-                      </div>
-                      {loadingProgress.year && (
-                        <div className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                          Currently fetching {loadingProgress.year} season data...
-                        </div>
-                      )}
                     </div>
                   )}
-                  
-                  <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-                    {loadingProgress.total > 1 ? 'Loading multiple seasons with rate limiting...' : 'Fetching latest standings and statistics'}
-                  </p>
                 </div>
               </div>
             ) : error ? (
@@ -445,7 +333,7 @@ export default function Home() {
                 <div className="text-center">
                   <div className="text-red-600 dark:text-red-400 mb-2">⚠️</div>
                   <p className="text-red-700 dark:text-red-300 font-medium">Error Loading Data</p>
-                  <p className="text-sm text-red-600 dark:text-red-400 mt-1">{error}</p>
+                  <p className="text-sm text-red-600 dark:text-red-400 mt-1">{error.message || String(error)}</p>
                 </div>
               </div>
             ) : activeView === 'table' ? (

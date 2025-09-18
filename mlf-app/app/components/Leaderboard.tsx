@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, memo, useCallback } from 'react'
 import { Team } from '@/lib/mfl'
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { formatTeamDisplay, getUniqueYears } from '@/lib/team-utils'
@@ -14,7 +14,7 @@ interface LeaderboardProps {
 type SortField = keyof Pick<Team, 'manager' | 'teamName' | 'startersPoints' | 'benchPoints' | 'offensePoints' | 'defensePoints' | 'totalPoints' | 'potentialPoints'> | 'efficiency'
 type SortDirection = 'asc' | 'desc' | null
 
-export default function Leaderboard({ teams, selectedWeeks = [] }: LeaderboardProps) {
+function Leaderboard({ teams, selectedWeeks = [] }: LeaderboardProps) {
   const [sortField, setSortField] = useState<SortField>('totalPoints')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   
@@ -50,7 +50,7 @@ export default function Leaderboard({ teams, selectedWeeks = [] }: LeaderboardPr
     return teams
   }, [teams, sortField, sortDirection])
 
-  const handleSort = (field: SortField) => {
+  const handleSort = useCallback((field: SortField) => {
     if (sortField === field) {
       setSortDirection(current => {
         if (current === 'desc') return 'asc'
@@ -61,16 +61,16 @@ export default function Leaderboard({ teams, selectedWeeks = [] }: LeaderboardPr
       setSortField(field)
       setSortDirection('desc')
     }
-  }
+  }, [sortField])
 
-  const getSortIcon = (field: SortField) => {
+  const getSortIcon = useCallback((field: SortField) => {
     if (sortField !== field || !sortDirection) {
       return <ArrowUpDown className="ml-1 h-3 w-3" />
     }
-    return sortDirection === 'desc' 
+    return sortDirection === 'desc'
       ? <ArrowDown className="ml-1 h-3 w-3" />
       : <ArrowUp className="ml-1 h-3 w-3" />
-  }
+  }, [sortField, sortDirection])
 
   // Removed - now using the efficiency field from Team interface
   // const calculateEfficiencyValue = (actualPoints: number, potentialPoints: number) => {
@@ -241,3 +241,5 @@ export default function Leaderboard({ teams, selectedWeeks = [] }: LeaderboardPr
     </div>
   )
 }
+
+export default memo(Leaderboard)
