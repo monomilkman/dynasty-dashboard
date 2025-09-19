@@ -126,7 +126,7 @@ function TeamChart({ teams, chartType, selectedWeeks }: TeamChartProps) {
       <div className="h-96 w-full flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600 dark:text-gray-400 mb-2">
-            {error || 'No data available'}
+            {error instanceof Error ? error.message : error || 'No data available'}
           </p>
           <p className="text-sm text-gray-500 dark:text-gray-500">
             Unable to load weekly progression data
