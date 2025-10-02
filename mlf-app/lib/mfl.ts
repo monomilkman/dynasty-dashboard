@@ -384,16 +384,16 @@ export async function normalizeTeamData(mflData: MFLStandingsResponse, year: num
       const pointsAgainst = parseFloat((f.pa as string) || '0') || 0
 
       // Validate potential points are realistic
-      // Potential points should always be >= actual points (you can't score more than optimal)
-      if (potentialPoints > 0 && potentialPoints < totalPoints) {
-        console.warn(`🚨 Franchise ${franchiseId}: Potential points (${potentialPoints.toFixed(2)}) less than total points (${totalPoints.toFixed(2)}). Using total points as potential.`)
-        potentialPoints = totalPoints
+      // Potential points should always be >= starter points (you can't score more than optimal starters)
+      if (potentialPoints > 0 && potentialPoints < startersPoints) {
+        console.warn(`🚨 Franchise ${franchiseId}: Potential points (${potentialPoints.toFixed(2)}) less than starter points (${startersPoints.toFixed(2)}). Using starter points as potential.`)
+        potentialPoints = startersPoints
       }
 
-      // If potential points is 0 but we have total points, something is wrong with the calculation
-      if (potentialPoints === 0 && totalPoints > 0) {
-        console.warn(`⚠️ Franchise ${franchiseId}: Potential points is 0 but total is ${totalPoints.toFixed(2)}. Setting potential = total.`)
-        potentialPoints = totalPoints
+      // If potential points is 0 but we have starter points, something is wrong with the calculation
+      if (potentialPoints === 0 && startersPoints > 0) {
+        console.warn(`⚠️ Franchise ${franchiseId}: Potential points is 0 but starters is ${startersPoints.toFixed(2)}. Setting potential = starters.`)
+        potentialPoints = startersPoints
       }
 
       const efficiency = calculateEfficiency(startersPoints, potentialPoints)

@@ -1,12 +1,18 @@
 # MyFantasyLeague App - Changelog
 
-## [Phase 2.2.2] - 2025-01-10 - Total Points Calculation Enhancement
+## [Phase 2.2.2] - 2025-01-10 - Total Points Calculation Enhancement & Validation Fix
 
 ### 🎯 Major UX Improvement: Total Points Now Shows Complete Roster Production
 - **CHANGED**: Total Points column now displays `startersPoints + benchPoints` instead of just starter points
 - **RATIONALE**: Eliminates redundancy between Total Points and Starter Points columns
 - **BENEFIT**: Provides meaningful insight into each team's complete roster scoring power
 - **DIVERGENCE**: This calculation differs from MFL's definition (which only counts starter points as total)
+
+### 🐛 Critical Fix: Potential Points Validation Logic
+- **FIXED**: Validation logic incorrectly comparing `potentialPoints` to `totalPoints` (which now includes bench)
+- **ISSUE**: Caused `potentialPoints` to be set equal to `totalPoints`, breaking efficiency calculations
+- **SOLUTION**: Changed validation to compare `potentialPoints` against `startersPoints` instead
+- **RESULT**: Potential points now correctly represent optimal starter lineup, efficiency calculations accurate
 
 ### 🔧 Total Points Calculation Changes
 
@@ -49,15 +55,19 @@ const efficiency = calculateEfficiency(startersPoints, potentialPoints)
 
 #### Sample Data Verification (2025 Season, 2 Completed Weeks):
 
-| Team | Starters | Bench | Total Points | Calculation |
-|------|----------|-------|--------------|-------------|
-| Brian Tutino | 957.81 | 798.17 | 1,755.98 | ✅ 957.81 + 798.17 = 1,755.98 |
-| David Schwartz | 993.51 | 568.62 | 1,562.13 | ✅ 993.51 + 568.62 = 1,562.13 |
-| Justin Herrmann | 979.16 | 748.80 | 1,727.96 | ✅ 979.16 + 748.80 = 1,727.96 |
+| Team | Starters | Bench | Total | Potential | Efficiency |
+|------|----------|-------|-------|-----------|------------|
+| Brian Tutino | 957.81 | 798.17 | 1,755.98 | 1,206.59 | 79.38% |
+| David Schwartz | 993.51 | 568.62 | 1,562.13 | 1,203.75 | 82.53% |
+| Justin Herrmann | 979.16 | 748.80 | 1,727.96 | 1,215.10 | 80.58% |
+| Matt Wishart | 963.32 | 669.06 | 1,632.38 | 1,138.22 | 84.63% |
+| Michael Foos | 925.53 | 783.19 | 1,708.72 | 1,168.74 | 79.19% |
 
 #### Mathematical Accuracy:
 - ✅ Total Points = Starters + Bench (100% accurate)
-- ✅ Efficiency = (Starters / Potential) × 100 (proper lineup optimization metric)
+- ✅ Potential Points > Starter Points (all teams validated)
+- ✅ Efficiency = (Starters / Potential) × 100 (mathematically correct)
+- ✅ Efficiency values in realistic range (79-85%)
 - ✅ All columns maintain data integrity
 - ✅ Sorting by Total Points ranks teams by complete roster production
 
