@@ -364,17 +364,18 @@ export async function normalizeTeamData(mflData: MFLStandingsResponse, year: num
         benchPoints = (detailedData.benchPoints as number) || 0
         offensePoints = (detailedData.offensePoints as number) || 0
         defensePoints = (detailedData.defensePoints as number) || 0
-        totalPoints = (detailedData.totalPoints as number) || startersPoints  // totalPoints should match startersPoints
+        totalPoints = startersPoints + benchPoints  // Total = starters + bench (diverges from MFL)
         potentialPoints = (detailedData.potentialPoints as number) || 0
 
         console.log(`Using detailed calculated data for ${franchiseId}: Total=${totalPoints}, Starters=${startersPoints}, Potential=${potentialPoints}`)
       } else {
         // Fallback to MFL's provided season totals when detailed data is not available
-        totalPoints = parseFloat((f.pf as string) || '0') || 0
-        startersPoints = totalPoints  // Assume starters = total when no detailed data
+        const mflTotalPoints = parseFloat((f.pf as string) || '0') || 0
+        startersPoints = mflTotalPoints  // Assume starters = total when no detailed data
         benchPoints = 0
-        offensePoints = totalPoints * 0.7  // Estimate
-        defensePoints = totalPoints * 0.3  // Estimate
+        offensePoints = mflTotalPoints * 0.7  // Estimate
+        defensePoints = mflTotalPoints * 0.3  // Estimate
+        totalPoints = startersPoints + benchPoints  // Total = starters + bench (will equal mflTotalPoints when benchPoints=0)
         potentialPoints = parseFloat((f.pp as string) || (f.maxpf as string) || '0') || 0
 
         console.log(`Using MFL season totals for ${franchiseId}: Total=${totalPoints}, Potential=${potentialPoints}`)
@@ -395,7 +396,7 @@ export async function normalizeTeamData(mflData: MFLStandingsResponse, year: num
         potentialPoints = totalPoints
       }
 
-      const efficiency = calculateEfficiency(totalPoints, potentialPoints)
+      const efficiency = calculateEfficiency(startersPoints, potentialPoints)
 
       // 100% efficiency can happen but is rare - only warn if it seems like a data issue
       if (efficiency === 100 && potentialPoints > 0 && detailedData) {
@@ -410,7 +411,7 @@ export async function normalizeTeamData(mflData: MFLStandingsResponse, year: num
         benchPoints,
         offensePoints,
         defensePoints,
-        totalPoints,        // MFL's pf field
+        totalPoints,        // Starters + Bench (diverges from MFL)
         potentialPoints,    // MFL's pp/maxpf field (validated)
         efficiency,         // Season efficiency
         qbPoints: (detailedData?.qbPoints as number) || 0,
