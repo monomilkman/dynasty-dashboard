@@ -346,30 +346,62 @@ export async function normalizeTeamData(mflData: MFLStandingsResponse, year: num
       const f = franchise as Record<string, unknown>
       const franchiseId = (f.id as string) || `unknown_${index}`
       
-      // ALWAYS prefer MFL's provided totals (Step 2: Fix field mappings)
-      const totalPoints = parseFloat((f.pf as string) || '0') || 0  // Use MFL's pf directly
-      const pointsAgainst = parseFloat((f.pa as string) || '0') || 0 // Use MFL's pa directly  
-      const potentialPoints = parseFloat((f.pp as string) || (f.maxpf as string) || '0') || 0 // Use MFL's pp/maxpf
-      
       // Get detailed data for starter/bench breakdown (only when not available from MFL)
       const detailedData = detailedScoringLookup[franchiseId]
-      
-      // Use detailed data for breakdowns when available, otherwise use reasonable defaults
-      let startersPoints = totalPoints  // Default: assume starters = total points
-      let benchPoints = 0               // Default: bench points not available in season totals
-      let offensePoints = totalPoints * 0.7  // Estimate for now
-      let defensePoints = totalPoints * 0.3  // Estimate for now
-      
+
+      // CRITICAL FIX: When detailed data is available, it represents accurate weekly calculations
+      // Use those values for ALL fields. Only fall back to MFL season totals when detailed data is missing.
+      let totalPoints: number
+      let startersPoints: number
+      let benchPoints: number
+      let offensePoints: number
+      let defensePoints: number
+      let potentialPoints: number
+
       if (detailedData) {
-        // Only use detailed data for breakdowns MFL doesn't provide
-        startersPoints = (detailedData.startersPoints as number) || totalPoints
+        // Use detailed calculated data (from weekly results) as the source of truth
+        startersPoints = (detailedData.startersPoints as number) || 0
         benchPoints = (detailedData.benchPoints as number) || 0
-        offensePoints = (detailedData.offensePoints as number) || totalPoints * 0.7
-        defensePoints = (detailedData.defensePoints as number) || totalPoints * 0.3
-        
-        console.log(`Using detailed data for breakdowns only for ${franchiseId}`)
+        offensePoints = (detailedData.offensePoints as number) || 0
+        defensePoints = (detailedData.defensePoints as number) || 0
+        totalPoints = (detailedData.totalPoints as number) || startersPoints  // totalPoints should match startersPoints
+        potentialPoints = (detailedData.potentialPoints as number) || 0
+
+        console.log(`Using detailed calculated data for ${franchiseId}: Total=${totalPoints}, Starters=${startersPoints}, Potential=${potentialPoints}`)
+      } else {
+        // Fallback to MFL's provided season totals when detailed data is not available
+        totalPoints = parseFloat((f.pf as string) || '0') || 0
+        startersPoints = totalPoints  // Assume starters = total when no detailed data
+        benchPoints = 0
+        offensePoints = totalPoints * 0.7  // Estimate
+        defensePoints = totalPoints * 0.3  // Estimate
+        potentialPoints = parseFloat((f.pp as string) || (f.maxpf as string) || '0') || 0
+
+        console.log(`Using MFL season totals for ${franchiseId}: Total=${totalPoints}, Potential=${potentialPoints}`)
       }
-      
+
+      const pointsAgainst = parseFloat((f.pa as string) || '0') || 0
+
+      // Validate potential points are realistic
+      // Potential points should always be >= actual points (you can't score more than optimal)
+      if (potentialPoints > 0 && potentialPoints < totalPoints) {
+        console.warn(`🚨 Franchise ${franchiseId}: Potential points (${potentialPoints.toFixed(2)}) less than total points (${totalPoints.toFixed(2)}). Using total points as potential.`)
+        potentialPoints = totalPoints
+      }
+
+      // If potential points is 0 but we have total points, something is wrong with the calculation
+      if (potentialPoints === 0 && totalPoints > 0) {
+        console.warn(`⚠️ Franchise ${franchiseId}: Potential points is 0 but total is ${totalPoints.toFixed(2)}. Setting potential = total.`)
+        potentialPoints = totalPoints
+      }
+
+      const efficiency = calculateEfficiency(totalPoints, potentialPoints)
+
+      // 100% efficiency can happen but is rare - only warn if it seems like a data issue
+      if (efficiency === 100 && potentialPoints > 0 && detailedData) {
+        console.log(`✓ Franchise ${franchiseId}: 100% efficiency (Total=${totalPoints.toFixed(2)}, Potential=${potentialPoints.toFixed(2)})`)
+      }
+
       const team = {
         id: franchiseId,
         manager: getOwnerName(franchiseId, year),
@@ -379,8 +411,8 @@ export async function normalizeTeamData(mflData: MFLStandingsResponse, year: num
         offensePoints,
         defensePoints,
         totalPoints,        // MFL's pf field
-        potentialPoints,    // MFL's pp/maxpf field
-        efficiency: calculateEfficiency(totalPoints, potentialPoints), // Season efficiency
+        potentialPoints,    // MFL's pp/maxpf field (validated)
+        efficiency,         // Season efficiency
         qbPoints: (detailedData?.qbPoints as number) || 0,
         rbPoints: (detailedData?.rbPoints as number) || 0,
         wrPoints: (detailedData?.wrPoints as number) || 0,
@@ -432,7 +464,20 @@ export async function normalizeTeamData(mflData: MFLStandingsResponse, year: num
     // Use MFL's provided totals directly (Step 2: Fix field mappings)
     const totalPoints = parseFloat((f.pf as string) || '0') || 0      // MFL's pf
     const pointsAgainst = parseFloat((f.pa as string) || '0') || 0    // MFL's pa
-    const potentialPoints = parseFloat((f.pp as string) || (f.maxpf as string) || '0') || 0  // MFL's pp/maxpf
+    let potentialPoints = parseFloat((f.pp as string) || (f.maxpf as string) || '0') || 0  // MFL's pp/maxpf
+
+    // Validate potential points are realistic
+    if (potentialPoints > 0 && potentialPoints < totalPoints) {
+      console.warn(`🚨 Franchise ${franchiseId}: Potential points (${potentialPoints}) less than total points (${totalPoints}). Using total points as potential.`)
+      potentialPoints = totalPoints
+    }
+
+    const efficiency = calculateEfficiency(totalPoints, potentialPoints)
+
+    // Warn when efficiency is 100% (should be rare)
+    if (efficiency === 100 && potentialPoints > 0) {
+      console.warn(`⚡ Franchise ${franchiseId}: 100% efficiency detected. This may indicate optimal lineup was achieved or data issue.`)
+    }
 
     const team = {
       id: franchiseId,
@@ -443,8 +488,8 @@ export async function normalizeTeamData(mflData: MFLStandingsResponse, year: num
       offensePoints: totalPoints * 0.7,  // Estimate
       defensePoints: totalPoints * 0.3,  // Estimate
       totalPoints,                  // MFL's pf
-      potentialPoints,              // MFL's pp/maxpf
-      efficiency: calculateEfficiency(totalPoints, potentialPoints), // Season efficiency
+      potentialPoints,              // MFL's pp/maxpf (validated)
+      efficiency,                   // Season efficiency
       qbPoints: 0,
       rbPoints: 0,
       wrPoints: 0,

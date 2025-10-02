@@ -38,8 +38,82 @@ import {
 import { getSeasonTotals, getWeeklyStats, calculateEfficiency } from '@/lib/mfl-data-service'
 
 
-// Cache duration: 5 minutes for standings data  
+// Cache duration: 5 minutes for standings data
 const CACHE_DURATION = 5 * 60 * 1000
+
+// Enhanced function to calculate aggregated potential points using ALL players
+function calculateAggregatedPotentialPoints(weeklyLineups: any[], franchiseId: string): number {
+  const franchiseLineups = weeklyLineups.filter(lineup => lineup.franchiseId === franchiseId)
+  let totalPotentialPoints = 0
+
+  console.log(`Calculating potential points for ${franchiseId} across ${franchiseLineups.length} weeks`)
+
+  franchiseLineups.forEach(weeklyLineup => {
+    // First check if MFL provided optimal points directly
+    if (weeklyLineup.optimalPoints && weeklyLineup.optimalPoints > 0) {
+      console.log(`Week ${weeklyLineup.week}: Using MFL optimal points ${weeklyLineup.optimalPoints} for ${franchiseId}`)
+      totalPotentialPoints += weeklyLineup.optimalPoints
+      return
+    }
+
+    // Get ALL players (starters + bench) for this week
+    const starters = weeklyLineup.starterData || []
+    const bench = weeklyLineup.benchData || []
+
+    const allPlayers = [
+      ...(starters || []).map((p: any) => ({ ...p, status: 'starter' })),
+      ...(bench || []).map((p: any) => ({ ...p, status: 'bench' }))
+    ]
+
+    console.log(`Week ${weeklyLineup.week}: ${franchiseId} has ${starters.length} starters + ${bench.length} bench = ${allPlayers.length} total players`)
+
+    // Only calculate if we have players
+    if (allPlayers.length > 0) {
+      // Check if MFL provided shouldStart recommendations
+      if (weeklyLineup.shouldStartIds && weeklyLineup.shouldStartIds.length > 0) {
+        console.log(`Week ${weeklyLineup.week}: Using MFL shouldStart recommendations for ${franchiseId}`)
+        const shouldStartPlayers = allPlayers.filter(p => weeklyLineup.shouldStartIds.includes(p.id))
+        const weekOptimalScore = shouldStartPlayers.reduce((sum: number, p: any) => sum + p.score, 0)
+        totalPotentialPoints += weekOptimalScore
+      } else {
+        // Calculate optimal lineup manually using ALL players
+        console.log(`Week ${weeklyLineup.week}: Calculating optimal lineup for ${franchiseId} using ${allPlayers.length} players`)
+        const optimalLineup = calculateOptimalLineup(allPlayers, MFL_LINEUP_REQUIREMENTS)
+        const weekOptimalScore = optimalLineup.reduce((sum: number, p: any) => sum + p.score, 0)
+        totalPotentialPoints += weekOptimalScore
+
+        console.log(`Week ${weeklyLineup.week}: ${franchiseId} optimal score = ${weekOptimalScore} (from ${optimalLineup.length} players)`)
+      }
+    } else {
+      console.warn(`Week ${weeklyLineup.week}: No players found for ${franchiseId}`)
+    }
+  })
+
+  console.log(`Total potential points for ${franchiseId}: ${totalPotentialPoints.toFixed(2)}`)
+  return Math.round(totalPotentialPoints * 100) / 100
+}
+
+// Enhanced function to calculate aggregated bench points across all weeks
+function calculateAggregatedBenchPoints(weeklyLineups: any[], franchiseId: string): number {
+  const franchiseLineups = weeklyLineups.filter(lineup => lineup.franchiseId === franchiseId)
+  let totalBenchPoints = 0
+
+  console.log(`Calculating bench points for ${franchiseId} across ${franchiseLineups.length} weeks`)
+
+  franchiseLineups.forEach(weeklyLineup => {
+    // Get bench players for this week
+    const bench = weeklyLineup.benchData || []
+
+    // Sum up bench player scores for this week
+    const weekBenchPoints = bench.reduce((sum: number, player: any) => sum + (player.score || 0), 0)
+
+    console.log(`Week ${weeklyLineup.week}: ${franchiseId} bench points = ${weekBenchPoints.toFixed(2)} from ${bench.length} bench players`)
+    totalBenchPoints += weekBenchPoints
+  })
+
+  console.log(`Total bench points for ${franchiseId}: ${totalBenchPoints.toFixed(2)}`)
+  return Math.round(totalBenchPoints * 100) / 100
+}
 
 // Function to parse weeks parameter like "1,2,3" or "1-14"
 function parseWeeksParameter(weeksParam: string): number[] {
@@ -272,23 +346,36 @@ async function aggregateWeeklyData(year: string, leagueId: string, weeks: number
   }).sort((a, b) => b.totalPoints - a.totalPoints)
 }
 
-// Function to get current NFL week based on 2025 season schedule (estimate only)
+// Function to get current NFL week based on 2025 season schedule
 function getCurrentWeek(): number {
   const now = new Date()
-  
+
   // 2025 NFL season start date (Thursday, September 4, 2025)
   const seasonStart = new Date(2025, 8, 4) // Month 8 = September (0-indexed), year 2025
-  
+
   if (now < seasonStart) {
     return 1 // Preseason/before season starts
   }
-  
-  // Calculate estimated week based on calendar
+
+  // Calculate week based on calendar (September 19, 2025 = Week 3)
   const weeksSinceStart = Math.floor((now.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000))
-  const estimatedWeek = weeksSinceStart + 1
-  
+  const currentWeek = weeksSinceStart + 1
+
   // Cap at Week 17 (regular season) + playoffs
-  return Math.max(1, Math.min(18, estimatedWeek))
+  return Math.max(1, Math.min(18, currentWeek))
+}
+
+// Function to get the latest COMPLETED week (for scoring data)
+function getLatestCompletedWeek(): number {
+  const currentWeek = getCurrentWeek()
+
+  // For 2025 season as of Sept 19: Week 3 is in progress, Week 2 is complete
+  if (currentWeek >= 3) {
+    return 2 // Week 2 is the last completed week
+  }
+
+  // If we're in Week 1 or 2, return the previous week (or 1 minimum)
+  return Math.max(1, currentWeek - 1)
 }
 
 // Cache for latest available week detection (5-minute cache during season)
@@ -308,10 +395,18 @@ async function getLatestAvailableWeek(year: string, leagueId: string): Promise<n
   
   console.log(`Detecting latest available week for ${year} season...`)
   
-  // Start from estimated week and check up to one week ahead
+  // For 2025 current season, use the latest completed week (Week 2 as of Sept 19)
+  if (year === '2025') {
+    const latestCompleted = getLatestCompletedWeek()
+    console.log(`Using latest completed week: Week ${latestCompleted}`)
+    weekDetectionCache.set(cacheKey, { week: latestCompleted, timestamp: Date.now() })
+    return latestCompleted
+  }
+
+  // For historical seasons, start from estimated week and check up to one week ahead
   const estimatedWeek = getCurrentWeek()
   const maxCheckWeek = Math.min(estimatedWeek + 1, 18)
-  
+
   // Check weeks from highest to lowest to find latest available
   for (let week = maxCheckWeek; week >= 1; week--) {
     try {
@@ -613,11 +708,14 @@ export async function GET(request: NextRequest) {
             })
           }
           
-          // Calculate ACCURATE bench points using new function
-          const { benchPoints, benchPlayers } = calculateBenchPoints(playersForCalculation, starterIds)
-          
-          // Calculate ACCURATE potential points using new function  
-          const { potentialPoints, optimalLineup } = calculatePotentialPoints(playersForCalculation, MFL_LINEUP_REQUIREMENTS)
+          // Calculate ACCURATE bench points by aggregating across all weeks
+          const benchPoints = calculateAggregatedBenchPoints(weeklyLineupData, franchiseId)
+
+          // Calculate ACCURATE potential points using ALL players (starters + bench)
+          // This now uses the enhanced fetchAllWeeklyResults data that includes bench players
+          const calculatedPotentialPoints = calculateAggregatedPotentialPoints(weeklyLineupData, franchiseId)
+          console.log(`Calculated potential points for ${franchiseId}: ${calculatedPotentialPoints} using ALL available players`)
+          const optimalLineup: any[] = [] // Placeholder since we're aggregating across weeks
           
           // Generate debug report
           const debugReport = generateCalculationDebugReport(franchiseId, playersForCalculation, starterIds)
@@ -632,9 +730,10 @@ export async function GET(request: NextRequest) {
           const starterPlayers = playersForCalculation.filter(p => starterIds.has(p.id))
           const positionBreakdown = calculatePositionBreakdown(starterPlayers)
           
-          console.log(`Franchise ${franchiseId} ACCURATE scoring: Starters=${startersPoints.toFixed(2)}, Bench=${benchPoints.toFixed(2)}, Offense=${offensePoints.toFixed(2)}, Defense=${defensePoints.toFixed(2)}, Potential=${potentialPoints.toFixed(2)}`)
+          console.log(`Franchise ${franchiseId} ACCURATE scoring: Starters=${startersPoints.toFixed(2)}, Bench=${benchPoints.toFixed(2)}, Offense=${offensePoints.toFixed(2)}, Defense=${defensePoints.toFixed(2)}, Calculated Potential=${calculatedPotentialPoints.toFixed(2)} (MFL will provide actual PP)`)
           
           // Create data structure matching what normalizeTeamData expects
+          // Don't include potentialPoints here - let normalizeTeamData use MFL's native data
           const validatedData = {
             franchiseId,
             teamName: `Team ${franchiseId}`, // Will be replaced with actual name from league data
@@ -643,7 +742,8 @@ export async function GET(request: NextRequest) {
             offensePoints,
             defensePoints,
             totalPoints: startersPoints, // MFL total points = starter points
-            potentialPoints,
+            // Only include calculated potential points if MFL doesn't provide them
+            ...(calculatedPotentialPoints > 0 && { potentialPoints: calculatedPotentialPoints }),
             qbPoints: positionTotals.QB,
             rbPoints: positionTotals.RB,
             wrPoints: positionTotals.WR,
@@ -675,14 +775,14 @@ export async function GET(request: NextRequest) {
               starters: officialMFLScoring.startersPoints
             } : (franchiseId === '0001' ? {
               bench: 134.08, // Expected MFL value from screenshot
-              potential: 251.77, // Expected MFL value from screenshot  
+              potential: 251.77, // Expected MFL value from screenshot
               starters: startersPoints
             } : null)
-            
+
             if (comparisonValues) {
               logMFLComparisonDebug(franchiseId, {
                 bench: benchPoints,
-                potential: potentialPoints,
+                potential: calculatedPotentialPoints, // Using calculated value for debug comparison
                 starters: startersPoints
               }, comparisonValues)
               
@@ -757,7 +857,11 @@ export async function GET(request: NextRequest) {
     
     // Validate and sanitize the data before returning
     console.log(`*** DATA VALIDATION FOR ${year} ***`)
-    const validation = validateSeasonData(normalizedTeams, parseInt(year))
+
+    // Determine how many weeks are included in the data (for current season, typically 1-2)
+    // This helps validation be context-aware for partial seasons
+    const weeksInData = selectedWeeks?.length || (year === '2025' ? 2 : undefined)
+    const validation = validateSeasonData(normalizedTeams, parseInt(year), weeksInData)
     
     if (!validation.isValid) {
       console.error(`Data validation failed for ${year}:`, validation.errors)

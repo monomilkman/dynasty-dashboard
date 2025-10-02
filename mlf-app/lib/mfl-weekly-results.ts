@@ -3,7 +3,7 @@
  * Fetches official lineup data from MFL's weeklyResults endpoint
  */
 
-import { getTotalWeeksForYear } from './season-config'
+import { getTotalWeeksForYear, getCurrentWeekForSeason } from './season-config'
 
 export interface WeeklyMatchup {
   franchise: WeeklyFranchise[]
@@ -48,6 +48,16 @@ export interface WeeklyLineup {
     score: number
     name: string
   }>
+  benchIds: string[]
+  benchData: Array<{
+    id: string
+    position: string
+    score: number
+    name: string
+  }>
+  // MFL native optimal data (if available)
+  optimalPoints?: number
+  shouldStartIds?: string[]
 }
 
 /**
@@ -101,16 +111,28 @@ async function delay(ms: number): Promise<void> {
  */
 export async function fetchAllWeeklyResults(year: number, leagueId: string): Promise<WeeklyLineup[]> {
   console.log(`Fetching all weekly results for league ${leagueId}, year ${year}`)
-  
-  // Get the total weeks available for this year
-  const totalWeeks = getTotalWeeksForYear(year)
-  console.log(`Using ${totalWeeks} total weeks for ${year} season (includes playoffs and toilet bowl)`)
-  
+
+  // Determine how many weeks to fetch based on current season status
+  let maxWeeksToFetch: number
+  const currentYear = new Date().getFullYear()
+
+  if (year === currentYear) {
+    // For current season, dynamically detect the last completed week
+    // getCurrentWeekForSeason returns the current week, so subtract 1 for last completed
+    const currentWeek = getCurrentWeekForSeason(year)
+    maxWeeksToFetch = Math.max(1, currentWeek - 1) // Ensure at least week 1
+    console.log(`${year} current season: fetching completed weeks 1-${maxWeeksToFetch}`)
+  } else {
+    // For historical seasons, get all weeks
+    maxWeeksToFetch = getTotalWeeksForYear(year)
+    console.log(`Historical season ${year}: fetching all ${maxWeeksToFetch} weeks`)
+  }
+
   // Fetch weeks one at a time with very conservative delays to avoid 429 errors
   const weeklyData: any[] = []
   const DELAY_MS = 3000 // 3 second delay between each individual week request
-  
-  for (let week = 1; week <= totalWeeks; week++) {
+
+  for (let week = 1; week <= maxWeeksToFetch; week++) {
     console.log(`Fetching week ${week} (with 3s delay)...`)
     
     try {
@@ -118,8 +140,8 @@ export async function fetchAllWeeklyResults(year: number, leagueId: string): Pro
       weeklyData.push(weekResult)
       console.log(`Successfully fetched week ${week}`)
       
-      // Add delay between each week (except for the last week)  
-      if (week < totalWeeks) {
+      // Add delay between each week (except for the last week)
+      if (week < maxWeeksToFetch) {
         console.log(`Waiting ${DELAY_MS}ms before next request...`)
         await delay(DELAY_MS)
       }
@@ -134,7 +156,7 @@ export async function fetchAllWeeklyResults(year: number, leagueId: string): Pro
     }
   }
   
-  console.log(`Successfully fetched ${weeklyData.length} out of ${totalWeeks} weeks`)
+  console.log(`Successfully fetched ${weeklyData.length} out of ${maxWeeksToFetch} weeks`)
   if (weeklyData.length === 0) {
     throw new Error('No weekly data could be fetched due to rate limiting')
   }
@@ -178,30 +200,60 @@ export async function fetchAllWeeklyResults(year: number, leagueId: string): Pro
     
     // Process all franchises regardless of format
     franchisesToProcess.forEach(franchise => {
-      if (!franchise.id || !franchise.starters) {
+      if (!franchise.id || !franchise.player) {
         console.warn(`Week ${week}: Franchise missing required data:`, franchise)
         return
       }
-      
-      const starterIds = franchise.starters.split(',').filter((id: any) => id.trim())
-      
-      const starterData = starterIds.map((playerId: any) => {
-        const playerInfo = franchise.player.find((p: any) => p.id === playerId)
-        const mapping = playerMappings.find((m: any) => m.id === playerId)
-        
-        return {
-          id: playerId,
+
+      // Extract starter IDs from starters field (fallback)
+      const starterIds = franchise.starters ? franchise.starters.split(',').filter((id: any) => id.trim()) : []
+
+      // Process ALL players in the franchise (starters + bench)
+      const allPlayers = franchise.player || []
+      const starterData: any[] = []
+      const benchData: any[] = []
+      const benchIds: string[] = []
+      const shouldStartIds: string[] = []
+
+      allPlayers.forEach((player: any) => {
+        const mapping = playerMappings.find((m: any) => m.id === player.id)
+        const playerData = {
+          id: player.id,
           position: mapping?.position || 'UNKNOWN',
-          score: parseFloat(playerInfo?.score || '0'),
-          name: mapping?.name || `Player ${playerId}`
+          score: parseFloat(player.score || '0'),
+          name: mapping?.name || `Player ${player.id}`
+        }
+
+        // Check MFL's shouldStart field for optimal lineup
+        if (player.shouldStart === '1') {
+          shouldStartIds.push(player.id)
+        }
+
+        // Categorize as starter or bench based on status or starter list
+        const isStarter = player.status === 'starter' || starterIds.includes(player.id)
+
+        if (isStarter) {
+          starterData.push(playerData)
+        } else {
+          benchData.push(playerData)
+          benchIds.push(player.id)
         }
       })
-      
+
+      // Look for MFL's native optimal points
+      const optimalPoints = franchise.opt_pts ? parseFloat(franchise.opt_pts) : undefined
+
+      console.log(`Week ${week} - Franchise ${franchise.id}: ${starterData.length} starters, ${benchData.length} bench, ${shouldStartIds.length} shouldStart, optPts=${optimalPoints || 'N/A'}`)
+
       allLineups.push({
         week,
         franchiseId: franchise.id,
         starterIds,
-        starterData
+        starterData,
+        benchIds,
+        benchData,
+        optimalPoints,
+        shouldStartIds
       })
     })
   })

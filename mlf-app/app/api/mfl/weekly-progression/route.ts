@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { fetchAllWeeklyResults, fetchPlayerMappings } from '@/lib/mfl-weekly-results'
 import { getOwnerName } from '@/lib/owner-mappings'
 import { getWeeksForProgression, getSeasonStatusDescription } from '@/lib/season-utils'
+import { getYearSpecificHeaders } from '@/lib/mfl-api-keys'
 // Import the new unified data service
 import { getWeeklyStats, calculateEfficiency, getPositionBreakdown } from '@/lib/mfl-data-service'
 
@@ -55,19 +56,8 @@ export async function GET(request: NextRequest) {
     console.log(`[Weekly Progression API] ${seasonStatus}`)
     console.log(`[Weekly Progression API] Including weeks: ${weeksToInclude.join(', ')}`)
 
-    // Build authentication headers
-    const userAgent = process.env.MFL_USER_AGENT || 'dynasty-dashboard'
-    const apiKey = process.env.MFL_API_KEY
-    
-    const headers: Record<string, string> = {
-      'User-Agent': userAgent,
-      'Accept': 'application/json',
-      'Cache-Control': 'no-cache'
-    }
-    
-    if (apiKey) {
-      headers['Authorization'] = `Bearer ${apiKey}`
-    }
+    // Use year-specific authentication headers
+    const headers = getYearSpecificHeaders(year, process.env.MFL_USER_AGENT || 'dynasty-dashboard')
 
     // Fetch real weekly data from MFL API
     try {

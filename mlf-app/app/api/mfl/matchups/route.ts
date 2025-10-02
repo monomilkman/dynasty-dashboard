@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { fetchWeeklyResults } from '@/lib/mfl-weekly-results'
 import { getOwnerName } from '@/lib/owner-mappings'
-import { getTotalWeeksForYear } from '@/lib/season-config'
+import { getTotalWeeksForYear, getCurrentWeekForSeason } from '@/lib/season-config'
+import { getYearSpecificHeaders } from '@/lib/mfl-api-keys'
 
 export interface MatchupResult {
   week: number
@@ -42,28 +43,27 @@ export async function GET(request: NextRequest) {
     if (weeksParam) {
       weeksToFetch = weeksParam.split(',').map(w => parseInt(w.trim())).filter(w => w >= 1 && w <= totalWeeks)
     } else {
-      // Default to only Week 1 unless more are specified to avoid counting unplayed weeks
-      // For current season, only include completed weeks
-      weeksToFetch = [1] // Start with Week 1, user can select more weeks if needed
+      // Dynamically detect completed weeks for current season
+      const currentYear = new Date().getFullYear()
+      if (year === currentYear) {
+        // For current season, fetch all completed weeks
+        const currentWeek = getCurrentWeekForSeason(year)
+        const lastCompletedWeek = Math.max(1, currentWeek - 1)
+        weeksToFetch = Array.from({ length: lastCompletedWeek }, (_, i) => i + 1)
+        console.log(`[Matchups API] ${year} current season: fetching completed weeks 1-${lastCompletedWeek}`)
+      } else {
+        // For historical seasons, fetch all weeks
+        weeksToFetch = Array.from({ length: totalWeeks }, (_, i) => i + 1)
+        console.log(`[Matchups API] Historical season ${year}: fetching all ${totalWeeks} weeks`)
+      }
     }
     
     console.log(`[Matchups API] Year ${year} has ${totalWeeks} total weeks available`)
 
     console.log(`[Matchups API] Fetching weeks: ${weeksToFetch.join(', ')}`)
 
-    // Build authentication headers
-    const userAgent = process.env.MFL_USER_AGENT || 'dynasty-dashboard'
-    const apiKey = process.env.MFL_API_KEY
-    
-    const headers: Record<string, string> = {
-      'User-Agent': userAgent,
-      'Accept': 'application/json',
-      'Cache-Control': 'no-cache'
-    }
-    
-    if (apiKey) {
-      headers['Authorization'] = `Bearer ${apiKey}`
-    }
+    // Use year-specific authentication headers
+    const headers = getYearSpecificHeaders(year, process.env.MFL_USER_AGENT || 'dynasty-dashboard')
 
     // First, fetch team names from the main MFL API
     const teamNamesResponse = await fetch(`https://api.myfantasyleague.com/${year}/export?TYPE=league&L=${leagueId}&JSON=1`, {

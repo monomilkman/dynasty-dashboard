@@ -25,8 +25,11 @@ const DEFAULT_RULES: ValidationRules = {
 
 /**
  * Validate a single team's data for completeness and accuracy
+ * @param teamData Team data to validate
+ * @param year Season year
+ * @param weeksCount Number of weeks included in the data (optional, used for partial season validation)
  */
-export function validateTeamData(teamData: any, year: number): ValidationResult {
+export function validateTeamData(teamData: any, year: number, weeksCount?: number): ValidationResult {
   const result: ValidationResult = {
     isValid: true,
     errors: [],
@@ -81,13 +84,23 @@ export function validateTeamData(teamData: any, year: number): ValidationResult 
       result.isValid = false
     }
     
-    // Season points should be reasonable
-    if (teamData.startersPoints < DEFAULT_RULES.minSeasonPoints) {
-      result.warnings.push(`Starter points (${teamData.startersPoints}) seems unusually low for a full season`)
+    // Season points should be reasonable - adjust for partial seasons
+    const expectedWeeksInSeason = 17 // NFL regular season
+    const actualWeeks = weeksCount || expectedWeeksInSeason
+    const isPartialSeason = actualWeeks < expectedWeeksInSeason
+
+    // Calculate adjusted thresholds based on weeks played
+    const adjustedMinPoints = DEFAULT_RULES.minSeasonPoints * (actualWeeks / expectedWeeksInSeason)
+    const adjustedMaxPoints = DEFAULT_RULES.maxSeasonPoints * (actualWeeks / expectedWeeksInSeason)
+
+    if (teamData.startersPoints < adjustedMinPoints) {
+      const weeksText = isPartialSeason ? `${actualWeeks} week(s)` : 'a full season'
+      result.warnings.push(`Starter points (${teamData.startersPoints.toFixed(2)}) seems unusually low for ${weeksText}`)
     }
-    
-    if (teamData.startersPoints > DEFAULT_RULES.maxSeasonPoints) {
-      result.warnings.push(`Starter points (${teamData.startersPoints}) seems unusually high`)
+
+    if (teamData.startersPoints > adjustedMaxPoints) {
+      const weeksText = isPartialSeason ? `${actualWeeks} week(s)` : 'a full season'
+      result.warnings.push(`Starter points (${teamData.startersPoints.toFixed(2)}) seems unusually high for ${weeksText}`)
     }
   }
   
@@ -96,8 +109,11 @@ export function validateTeamData(teamData: any, year: number): ValidationResult 
 
 /**
  * Validate all teams data for a season
+ * @param teamsData Array of team data to validate
+ * @param year Season year
+ * @param weeksCount Number of weeks included in the data (optional, used for partial season validation)
  */
-export function validateSeasonData(teamsData: any[], year: number): ValidationResult {
+export function validateSeasonData(teamsData: any[], year: number, weeksCount?: number): ValidationResult {
   const result: ValidationResult = {
     isValid: true,
     errors: [],
@@ -115,7 +131,7 @@ export function validateSeasonData(teamsData: any[], year: number): ValidationRe
   // Validate each team
   let validTeams = 0
   for (const team of teamsData) {
-    const teamValidation = validateTeamData(team, year)
+    const teamValidation = validateTeamData(team, year, weeksCount)
     
     if (teamValidation.isValid) {
       validTeams++
@@ -212,7 +228,7 @@ export function sanitizeTeamData(teamData: any): any {
   
   // Ensure all numeric fields are valid numbers
   const numericFields = [
-    'startersPoints', 'benchPoints', 'potentialPoints',
+    'startersPoints', 'benchPoints', 'potentialPoints', 'efficiency',
     'offensePoints', 'defensePoints', 'totalPoints',
     'qbPoints', 'rbPoints', 'wrPoints', 'tePoints', 'kPoints',
     'dlPoints', 'lbPoints', 'cbPoints', 'sPoints',

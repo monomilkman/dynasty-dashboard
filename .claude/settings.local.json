@@ -58,7 +58,17 @@
       "Bash(findstr:*)",
       "Bash(npx tsc:*)",
       "Bash(npx prisma:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(npx playwright:*)",
+      "Bash(claude mcp add playwright -s user:*)",
+      "Bash(claude mcp)",
+      "Bash(claude mcp:*)",
+      "mcp__playwright__playwright_navigate",
+      "mcp__playwright__playwright_screenshot",
+      "mcp__playwright__playwright_click",
+      "mcp__playwright__playwright_close",
+      "mcp__playwright__playwright_evaluate",
+      "Bash(test:*)"
     ],
     "deny": [],
     "ask": []
