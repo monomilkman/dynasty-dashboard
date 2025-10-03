@@ -15,6 +15,7 @@ import MatchupsTable from './components/MatchupsTable'
 import RankingsTable from './components/RankingsTable'
 import HeadToHeadComparison from './components/HeadToHeadComparison'
 import SeasonBreakdownTable from './components/SeasonBreakdownTable'
+import PlayoffProjections from './components/PlayoffProjections'
 import ExportButton from './components/ExportButton'
 import { 
   exportTeamsData, 
@@ -32,7 +33,7 @@ const currentYear = getCurrentYear()
 export default function Home() {
   const [selectedYears, setSelectedYears] = useState<number[]>([currentYear])
   const [selectedWeeks, setSelectedWeeks] = useState<number[]>([]) // Empty array means all weeks
-  const [activeView, setActiveView] = useState<'table' | 'charts' | 'positions' | 'matchups' | 'rankings' | 'comparison' | 'breakdown'>('table')
+  const [activeView, setActiveView] = useState<'table' | 'charts' | 'positions' | 'matchups' | 'rankings' | 'comparison' | 'breakdown' | 'playoff'>('table')
   const [selectedManagers, setSelectedManagers] = useState<string[]>([])
   const [statFilter, setStatFilter] = useState<'all' | 'offense' | 'defense'>('all')
 
@@ -243,15 +244,25 @@ export default function Home() {
             >
               Compare Teams
             </button>
-            <button 
+            <button
               onClick={() => setActiveView('breakdown')}
               className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeView === 'breakdown' 
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400' 
+                activeView === 'breakdown'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
               }`}
             >
               Season Breakdown
+            </button>
+            <button
+              onClick={() => setActiveView('playoff')}
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeView === 'playoff'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              Playoff Tracker
             </button>
           </nav>
         </div>
@@ -263,12 +274,13 @@ export default function Home() {
           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {activeView === 'table' ? 'All Statistics' : 
-                 activeView === 'charts' ? 'Team Performance Charts' : 
-                 activeView === 'positions' ? 'Positional Statistics' : 
-                 activeView === 'rankings' ? 'Team Rankings' : 
+                {activeView === 'table' ? 'All Statistics' :
+                 activeView === 'charts' ? 'Team Performance Charts' :
+                 activeView === 'positions' ? 'Positional Statistics' :
+                 activeView === 'rankings' ? 'Team Rankings' :
                  activeView === 'comparison' ? 'Team Comparison' :
                  activeView === 'breakdown' ? 'Regular Season vs Postseason Performance' :
+                 activeView === 'playoff' ? 'Playoff Probability Tracker' :
                  'Matchups & Records'}
               </h2>
               <div className="flex items-center space-x-4">
@@ -348,6 +360,8 @@ export default function Home() {
               <HeadToHeadComparison teams={filteredTeams} selectedWeeks={selectedWeeks} />
             ) : activeView === 'breakdown' ? (
               <SeasonBreakdownTable teams={filteredTeams} />
+            ) : activeView === 'playoff' ? (
+              <PlayoffProjections year={selectedYears[0] || currentYear} />
             ) : (
               <div className="space-y-8">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

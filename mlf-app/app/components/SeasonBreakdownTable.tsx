@@ -5,14 +5,15 @@ import { Team } from '@/lib/mfl'
 import { ArrowUpDown, ArrowUp, ArrowDown, Trophy, Calendar, Target } from 'lucide-react'
 import { formatTeamDisplay, getUniqueYears } from '@/lib/team-utils'
 import { formatPoints } from '@/lib/utils'
-import { 
-  estimateSeasonBreakdown, 
+import {
+  estimateSeasonBreakdown,
   formatSeasonBreakdown,
   hasPostseasonData,
   getEfficiencyRating,
   type SeasonBreakdown
 } from '@/lib/season-breakdown-utils'
 import { getRegularSeasonEndWeek, getTotalWeeksForYear } from '@/lib/season-config'
+import PlayoffProjections from './PlayoffProjections'
 
 interface SeasonBreakdownTableProps {
   teams: Team[]
@@ -25,10 +26,12 @@ interface TeamWithBreakdown extends Team {
   efficiency: number
 }
 
+type TabView = 'breakdown' | 'playoffs'
 type SortField = 'manager' | 'teamName' | 'regularSeasonPoints' | 'postseasonPoints' | 'fullSeasonPoints' | 'efficiency'
 type SortDirection = 'asc' | 'desc' | null
 
 export default function SeasonBreakdownTable({ teams }: SeasonBreakdownTableProps) {
+  const [activeTab, setActiveTab] = useState<TabView>('breakdown')
   const [sortField, setSortField] = useState<SortField>('fullSeasonPoints')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   
@@ -127,30 +130,73 @@ export default function SeasonBreakdownTable({ teams }: SeasonBreakdownTableProp
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
       <div className="px-4 py-5 sm:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
-              Season Breakdown
-            </h3>
-            <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
-              Regular season (weeks 1-{regularSeasonEndWeek}) vs postseason (weeks {regularSeasonEndWeek + 1}-{totalWeeks}) performance
-            </p>
-          </div>
-          <div className="flex space-x-2">
-            <div className="flex items-center text-xs text-gray-500">
-              <Calendar className="h-4 w-4 mr-1" />
-              Regular Season
-            </div>
-            <div className="flex items-center text-xs text-gray-500">
-              <Trophy className="h-4 w-4 mr-1" />
-              Postseason
-            </div>
-            <div className="flex items-center text-xs text-gray-500">
-              <Target className="h-4 w-4 mr-1" />
-              Full Season
-            </div>
-          </div>
+        {/* Tab Navigation */}
+        <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
+          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+            <button
+              onClick={() => setActiveTab('breakdown')}
+              className={`
+                whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
+                ${
+                  activeTab === 'breakdown'
+                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                }
+              `}
+            >
+              <div className="flex items-center">
+                <Calendar className="h-4 w-4 mr-2" />
+                Season Breakdown
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('playoffs')}
+              className={`
+                whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
+                ${
+                  activeTab === 'playoffs'
+                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                }
+              `}
+            >
+              <div className="flex items-center">
+                <Trophy className="h-4 w-4 mr-2" />
+                Playoff Projections
+              </div>
+            </button>
+          </nav>
         </div>
+
+        {/* Tab Content */}
+        {activeTab === 'playoffs' ? (
+          <PlayoffProjections year={primaryYear} />
+        ) : (
+          <>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+                  Season Breakdown
+                </h3>
+                <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
+                  Regular season (weeks 1-{regularSeasonEndWeek}) vs postseason (weeks {regularSeasonEndWeek + 1}-{totalWeeks}) performance
+                </p>
+              </div>
+              <div className="flex space-x-2">
+                <div className="flex items-center text-xs text-gray-500">
+                  <Calendar className="h-4 w-4 mr-1" />
+                  Regular Season
+                </div>
+                <div className="flex items-center text-xs text-gray-500">
+                  <Trophy className="h-4 w-4 mr-1" />
+                  Postseason
+                </div>
+                <div className="flex items-center text-xs text-gray-500">
+                  <Target className="h-4 w-4 mr-1" />
+                  Full Season
+                </div>
+              </div>
+            </div>
 
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -307,6 +353,8 @@ export default function SeasonBreakdownTable({ teams }: SeasonBreakdownTableProp
             <div><strong>Struggled:</strong> &lt;80% efficiency</div>
           </div>
         </div>
+          </>
+        )}
       </div>
     </div>
   )
