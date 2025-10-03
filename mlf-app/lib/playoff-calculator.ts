@@ -260,6 +260,21 @@ export function calculatePlayoffProbabilities(
     const seedProbabilities = data.seedCounts.map(count => (count / iterations) * 100)
     const averageSeed = data.playoffCount > 0 ? data.totalSeed / data.playoffCount : 0
 
+    // Calculate magic number and elimination number
+    const teamSchedule = schedules.find(s => s.franchiseId === team.id)
+    const remainingGames = teamSchedule?.remainingGames.length || 0
+
+    const magicNumber = calculateMagicNumber(team.id, standings, schedules, divisionsData, playoffProbability)
+    const eliminationNumber = calculateEliminationNumber(team.id, standings, schedules, playoffProbability)
+
+    // Generate clinching scenarios
+    const clinchScenarios = generateClinchScenarios(
+      team.id,
+      standings,
+      schedules,
+      { ...data, playoffProbability, divisionWinProbability, magicNumber, eliminationNumber, remainingGames }
+    )
+
     return {
       franchiseId: team.id,
       playoffProbability,
@@ -267,9 +282,9 @@ export function calculatePlayoffProbabilities(
       wildcardProbability,
       seedProbabilities,
       averageSeed,
-      eliminationNumber: 0, // TODO: Calculate
-      magicNumber: 0, // TODO: Calculate
-      clinchScenarios: [], // TODO: Generate
+      eliminationNumber,
+      magicNumber,
+      clinchScenarios,
     }
   })
 
@@ -280,29 +295,185 @@ export function calculatePlayoffProbabilities(
 }
 
 /**
- * Generate human-readable clinching scenarios
+ * Calculate magic number for clinching playoffs
+ * Magic number = wins needed to guarantee playoff spot
  */
-export function generateClinchScenarios(
+function calculateMagicNumber(
   franchiseId: string,
   standings: StandingsFranchise[],
   schedules: TeamSchedule[],
-  probabilities: PlayoffProbabilities
+  divisionsData: DivisionsData,
+  playoffProbability: number
+): number {
+  // If already clinched (99.9%+), magic number is 0
+  if (playoffProbability >= 99.9) return 0
+
+  const team = standings.find(s => s.id === franchiseId)
+  if (!team) return 99
+
+  const currentWins = parseInt(team.h2hw) || 0
+  const teamSchedule = schedules.find(s => s.franchiseId === franchiseId)
+  const remainingGames = teamSchedule?.remainingGames.length || 0
+
+  // If eliminated (< 1%), magic number is impossible
+  if (playoffProbability < 1.0 || remainingGames === 0) return 99
+
+  // Get all teams and sort by wins
+  const allTeams = standings.map(s => ({
+    id: s.id,
+    wins: parseInt(s.h2hw) || 0,
+    losses: parseInt(s.h2hl) || 0,
+    schedule: schedules.find(sch => sch.franchiseId === s.id)
+  })).sort((a, b) => b.wins - a.wins)
+
+  // Find the 7th place team (first team out of playoffs)
+  const seventhPlace = allTeams[6] // 0-indexed, so 6 is 7th place
+  if (!seventhPlace) return 1 // Not enough teams
+
+  const seventhPlaceMaxWins = seventhPlace.wins + (seventhPlace.schedule?.remainingGames.length || 0)
+
+  // Magic number is wins needed to guarantee finishing ahead of 7th place
+  // We need to win enough games that 7th place can't catch us
+  const winsNeeded = Math.max(0, seventhPlaceMaxWins + 1 - currentWins)
+
+  // Can't need more wins than games remaining
+  return Math.min(winsNeeded, remainingGames)
+}
+
+/**
+ * Calculate elimination number
+ * Elimination number = losses that would eliminate from playoffs
+ */
+function calculateEliminationNumber(
+  franchiseId: string,
+  standings: StandingsFranchise[],
+  schedules: TeamSchedule[],
+  playoffProbability: number
+): number {
+  // If already clinched, can't be eliminated
+  if (playoffProbability >= 99.9) return 99
+
+  const team = standings.find(s => s.id === franchiseId)
+  if (!team) return 0
+
+  const currentWins = parseInt(team.h2hw) || 0
+  const currentLosses = parseInt(team.h2hl) || 0
+  const teamSchedule = schedules.find(s => s.franchiseId === franchiseId)
+  const remainingGames = teamSchedule?.remainingGames.length || 0
+
+  // If already eliminated
+  if (playoffProbability < 1.0) return 0
+
+  // Maximum wins possible
+  const maxWins = currentWins + remainingGames
+
+  // Get 6th place team (last playoff spot)
+  const allTeams = standings.map(s => ({
+    id: s.id,
+    wins: parseInt(s.h2hw) || 0,
+  })).sort((a, b) => b.wins - a.wins)
+
+  const sixthPlace = allTeams[5] // 0-indexed
+  if (!sixthPlace || sixthPlace.id === franchiseId) {
+    // We're in the top 6, calculate based on 7th place
+    const seventhPlace = allTeams[6]
+    if (!seventhPlace) return remainingGames // Safe for now
+
+    // If 7th place can overtake our max wins, we need to avoid losses
+    const lossesUntilElimination = Math.max(0, maxWins - seventhPlace.wins)
+    return Math.min(lossesUntilElimination, remainingGames)
+  }
+
+  // We're below 6th place - calculate losses until we can't catch 6th
+  const lossesUntilElimination = Math.max(0, maxWins - sixthPlace.wins)
+  return Math.min(lossesUntilElimination, remainingGames)
+}
+
+/**
+ * Generate human-readable clinching scenarios
+ */
+function generateClinchScenarios(
+  franchiseId: string,
+  standings: StandingsFranchise[],
+  schedules: TeamSchedule[],
+  data: {
+    playoffProbability: number
+    divisionWinProbability: number
+    magicNumber: number
+    eliminationNumber: number
+    remainingGames: number
+  }
 ): string[] {
   const scenarios: string[] = []
+  const { playoffProbability, divisionWinProbability, magicNumber, eliminationNumber, remainingGames } = data
 
-  // If already clinched
-  if (probabilities.playoffProbability >= 99.9) {
-    scenarios.push('Already clinched playoff spot!')
-  } else if (probabilities.playoffProbability >= 80) {
-    // High probability - show simple scenarios
-    const teamSchedule = schedules.find(s => s.franchiseId === franchiseId)
-    if (teamSchedule && teamSchedule.remainingGames.length > 0) {
-      scenarios.push(`Win any ${Math.ceil(teamSchedule.remainingGames.length / 2)} games to clinch`)
+  // Already clinched (99.9%+)
+  if (playoffProbability >= 99.9) {
+    if (divisionWinProbability >= 99.9) {
+      scenarios.push('✓ Clinched division title!')
+    } else {
+      scenarios.push('✓ Clinched playoff spot!')
     }
-  } else if (probabilities.playoffProbability >= 50) {
-    scenarios.push('Must win majority of remaining games')
-  } else if (probabilities.playoffProbability < 10) {
-    scenarios.push('Needs help from other teams + win out')
+    if (remainingGames > 0) {
+      scenarios.push(`Playing for ${divisionWinProbability < 99.9 ? 'division title and ' : ''}seeding`)
+    }
+    return scenarios
+  }
+
+  // Eliminated (< 1%)
+  if (playoffProbability < 1.0) {
+    scenarios.push('✗ Eliminated from playoff contention')
+    return scenarios
+  }
+
+  // Very likely (80-99.9%)
+  if (playoffProbability >= 80) {
+    if (magicNumber > 0 && magicNumber < 99) {
+      scenarios.push(`Magic number: ${magicNumber} (win ${magicNumber} ${magicNumber === 1 ? 'game' : 'games'} to clinch)`)
+    }
+    if (divisionWinProbability >= 50) {
+      scenarios.push('Leading division race')
+    }
+    const winsNeeded = Math.ceil(remainingGames * 0.4) // Need ~40% of remaining
+    if (winsNeeded > 0) {
+      scenarios.push(`Win ${winsNeeded} of next ${remainingGames} games to secure spot`)
+    }
+    return scenarios
+  }
+
+  // Likely (50-80%)
+  if (playoffProbability >= 50) {
+    const winsNeeded = Math.ceil(remainingGames * 0.6) // Need ~60% of remaining
+    scenarios.push(`Win ${winsNeeded} of ${remainingGames} remaining games`)
+    if (divisionWinProbability >= 30) {
+      scenarios.push('In division race - key games ahead')
+    } else {
+      scenarios.push('Competing for wildcard spot')
+    }
+    return scenarios
+  }
+
+  // Bubble team (20-50%)
+  if (playoffProbability >= 20) {
+    const winsNeeded = Math.ceil(remainingGames * 0.75) // Need ~75% of remaining
+    scenarios.push(`Must win ${winsNeeded} of ${remainingGames} remaining games`)
+    scenarios.push('Need help from other teams')
+    if (eliminationNumber > 0 && eliminationNumber < 99) {
+      scenarios.push(`⚠️ ${eliminationNumber} ${eliminationNumber === 1 ? 'loss' : 'losses'} eliminates`)
+    }
+    return scenarios
+  }
+
+  // Long shot (1-20%)
+  if (playoffProbability >= 1) {
+    if (remainingGames > 0) {
+      scenarios.push(`Must win out (${remainingGames} games)`)
+      scenarios.push('Requires multiple upsets by other teams')
+    }
+    if (eliminationNumber === 1) {
+      scenarios.push('⚠️ Any loss eliminates')
+    }
+    return scenarios
   }
 
   return scenarios
