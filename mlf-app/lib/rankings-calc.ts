@@ -63,7 +63,7 @@ export function calculateOffensiveRankings(teams: Team[]): TeamRanking[] {
     teamName: team.teamName,
     manager: team.manager,
     rank: 0,
-    value: team.startersPoints || team.offensePoints // Use starter points as requested, fallback to offense points
+    value: team.offensePoints
   }))
 
   rankings.sort((a, b) => b.value - a.value)
@@ -195,7 +195,7 @@ export function getAllRankingCategories(teams: Team[]): RankingCategory[] {
     {
       id: 'offense',
       name: 'Offensive Power',
-      description: 'Ranked by offensive points scored',
+      description: 'Ranked by total points from offensive starting players',
       rankings: calculateOffensiveRankings(teams)
     },
     {
