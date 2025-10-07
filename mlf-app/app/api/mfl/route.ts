@@ -38,8 +38,8 @@ import {
 import { getSeasonTotals, getWeeklyStats, calculateEfficiency } from '@/lib/mfl-data-service'
 
 
-// Cache duration: 5 minutes for standings data
-const CACHE_DURATION = 5 * 60 * 1000
+// Cache duration: 1 minute for fresher real-time data during active season
+const CACHE_DURATION = 1 * 60 * 1000
 
 // Enhanced function to calculate aggregated potential points using ALL players
 function calculateAggregatedPotentialPoints(weeklyLineups: any[], franchiseId: string): number {
@@ -346,90 +346,80 @@ async function aggregateWeeklyData(year: string, leagueId: string, weeks: number
   }).sort((a, b) => b.totalPoints - a.totalPoints)
 }
 
-// Function to get current NFL week based on 2025 season schedule
-function getCurrentWeek(): number {
-  const now = new Date()
+// NOTE: Week detection is now fully MFL API-driven in getLatestAvailableWeek()
+// No hardcoded dates or week numbers - all data comes from MFL API
 
-  // 2025 NFL season start date (Thursday, September 4, 2025)
-  const seasonStart = new Date(2025, 8, 4) // Month 8 = September (0-indexed), year 2025
-
-  if (now < seasonStart) {
-    return 1 // Preseason/before season starts
-  }
-
-  // Calculate week based on calendar (September 19, 2025 = Week 3)
-  const weeksSinceStart = Math.floor((now.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000))
-  const currentWeek = weeksSinceStart + 1
-
-  // Cap at Week 17 (regular season) + playoffs
-  return Math.max(1, Math.min(18, currentWeek))
-}
-
-// Function to get the latest COMPLETED week (for scoring data)
-function getLatestCompletedWeek(): number {
-  const currentWeek = getCurrentWeek()
-
-  // For 2025 season as of Sept 19: Week 3 is in progress, Week 2 is complete
-  if (currentWeek >= 3) {
-    return 2 // Week 2 is the last completed week
-  }
-
-  // If we're in Week 1 or 2, return the previous week (or 1 minimum)
-  return Math.max(1, currentWeek - 1)
-}
-
-// Cache for latest available week detection (5-minute cache during season)
+// Cache for latest available week detection (1-minute cache for real-time updates)
 const weekDetectionCache = new Map<string, { week: number; timestamp: number }>()
-const WEEK_DETECTION_CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+const WEEK_DETECTION_CACHE_DURATION = 1 * 60 * 1000 // 1 minute
 
-// Permanent solution: Smart week detection that actually checks what data exists
+// MFL API-driven week detection - queries actual data from MFL, no hardcoded dates
 async function getLatestAvailableWeek(year: string, leagueId: string): Promise<number> {
   const cacheKey = `${year}-${leagueId}`
-  
+
   // Check cache first
   const cached = weekDetectionCache.get(cacheKey)
   if (cached && (Date.now() - cached.timestamp) < WEEK_DETECTION_CACHE_DURATION) {
     console.log(`Using cached latest week: Week ${cached.week}`)
     return cached.week
   }
-  
-  console.log(`Detecting latest available week for ${year} season...`)
-  
-  // For 2025 current season, use the latest completed week (Week 2 as of Sept 19)
-  if (year === '2025') {
-    const latestCompleted = getLatestCompletedWeek()
-    console.log(`Using latest completed week: Week ${latestCompleted}`)
-    weekDetectionCache.set(cacheKey, { week: latestCompleted, timestamp: Date.now() })
-    return latestCompleted
+
+  console.log(`Detecting latest available week for ${year} season using MFL API...`)
+
+  const baseUrl = process.env.MFL_API_BASE_URL || 'https://api.myfantasyleague.com'
+  const headers = getYearSpecificHeaders(parseInt(year), process.env.MFL_USER_AGENT || 'dynasty-dashboard')
+
+  // Method 1: Query MFL weeklyResults API to find latest completed week with actual data
+  try {
+    const weeklyResultsUrl = `${baseUrl}/${year}/export?TYPE=weeklyResults&L=${leagueId}&JSON=1`
+    console.log(`Querying MFL for completed weeks: ${weeklyResultsUrl}`)
+
+    const weeklyData = await fetchWithRetry(weeklyResultsUrl, { headers })
+
+    if ((weeklyData as any)?.weeklyResults?.matchup) {
+      const matchups = Array.isArray((weeklyData as any).weeklyResults.matchup)
+        ? (weeklyData as any).weeklyResults.matchup
+        : [(weeklyData as any).weeklyResults.matchup]
+
+      // Find all weeks with completed matchup data (has franchises with scores)
+      const completedWeeks = matchups
+        .filter((m: any) => m.franchise && Array.isArray(m.franchise) && m.franchise.length > 0)
+        .map((m: any) => {
+          // Week can be in matchup object or franchise object
+          const week = m.week || (m.franchise && m.franchise[0] ? m.franchise[0].week : null)
+          return parseInt(week || '0')
+        })
+        .filter((w: number) => w > 0)
+
+      if (completedWeeks.length > 0) {
+        const latestWeek = Math.max(...completedWeeks)
+        console.log(`✓ Found ${completedWeeks.length} completed weeks from MFL API, latest is Week ${latestWeek}`)
+        weekDetectionCache.set(cacheKey, { week: latestWeek, timestamp: Date.now() })
+        return latestWeek
+      }
+    }
+  } catch (error) {
+    console.warn('weeklyResults query failed, trying playerScores fallback:', error instanceof Error ? error.message : error)
   }
 
-  // For historical seasons, start from estimated week and check up to one week ahead
-  const estimatedWeek = getCurrentWeek()
-  const maxCheckWeek = Math.min(estimatedWeek + 1, 18)
-
-  // Check weeks from highest to lowest to find latest available
-  for (let week = maxCheckWeek; week >= 1; week--) {
+  // Method 2: Check player scores week by week from highest to lowest
+  // Start from week 18 (max possible) and work backwards to find latest data
+  console.log('Checking player scores to find latest week with data...')
+  for (let week = 18; week >= 1; week--) {
     try {
-      console.log(`Checking Week ${week} for data availability...`)
       const playerScores = await fetchPlayerScores(year, leagueId, week.toString())
-      
+
       if (playerScores?.playerScores?.playerScore && playerScores.playerScores.playerScore.length > 0) {
         console.log(`✓ Week ${week} has ${playerScores.playerScores.playerScore.length} player scores - using this week`)
-        
-        // Cache the result
         weekDetectionCache.set(cacheKey, { week, timestamp: Date.now() })
         return week
-      } else {
-        console.log(`✗ Week ${week} has no player score data`)
       }
     } catch (error) {
-      console.log(`✗ Week ${week} fetch failed:`, error instanceof Error ? error.message : error)
+      // Continue checking previous weeks
     }
   }
-  
+
   console.log(`No weeks found with data, defaulting to Week 1`)
-  
-  // Cache Week 1 as fallback
   weekDetectionCache.set(cacheKey, { week: 1, timestamp: Date.now() })
   return 1
 }

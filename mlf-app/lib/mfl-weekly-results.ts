@@ -3,7 +3,7 @@
  * Fetches official lineup data from MFL's weeklyResults endpoint
  */
 
-import { getTotalWeeksForYear, getCurrentWeekForSeason } from './season-config'
+import { getTotalWeeksForYear } from './season-config'
 
 export interface WeeklyMatchup {
   franchise: WeeklyFranchise[]
@@ -112,51 +112,59 @@ async function delay(ms: number): Promise<void> {
 export async function fetchAllWeeklyResults(year: number, leagueId: string): Promise<WeeklyLineup[]> {
   console.log(`Fetching all weekly results for league ${leagueId}, year ${year}`)
 
-  // Determine how many weeks to fetch based on current season status
-  let maxWeeksToFetch: number
+  // For current season, dynamically detect completed weeks by fetching until we hit empty data
+  // For historical seasons, fetch all weeks
   const currentYear = new Date().getFullYear()
+  const isCurrentSeason = year === currentYear
+  const MAX_POSSIBLE_WEEKS = getTotalWeeksForYear(year)
 
-  if (year === currentYear) {
-    // For current season, dynamically detect the last completed week
-    // getCurrentWeekForSeason returns the current week, so subtract 1 for last completed
-    const currentWeek = getCurrentWeekForSeason(year)
-    maxWeeksToFetch = Math.max(1, currentWeek - 1) // Ensure at least week 1
-    console.log(`${year} current season: fetching completed weeks 1-${maxWeeksToFetch}`)
+  if (isCurrentSeason) {
+    console.log(`${year} current season: dynamically detecting completed weeks from MFL`)
   } else {
-    // For historical seasons, get all weeks
-    maxWeeksToFetch = getTotalWeeksForYear(year)
-    console.log(`Historical season ${year}: fetching all ${maxWeeksToFetch} weeks`)
+    console.log(`Historical season ${year}: fetching all ${MAX_POSSIBLE_WEEKS} weeks`)
   }
 
   // Fetch weeks one at a time with very conservative delays to avoid 429 errors
   const weeklyData: any[] = []
   const DELAY_MS = 3000 // 3 second delay between each individual week request
 
-  for (let week = 1; week <= maxWeeksToFetch; week++) {
+  for (let week = 1; week <= MAX_POSSIBLE_WEEKS; week++) {
     console.log(`Fetching week ${week} (with 3s delay)...`)
-    
+
     try {
       const weekResult = await fetchWeeklyResults(year, leagueId, week)
+
+      // Check if week has data (for current season, stop when we hit empty week)
+      if (isCurrentSeason && (!weekResult || !weekResult.weeklyResults?.matchup)) {
+        console.log(`Week ${week} has no data - stopping (latest completed week is ${week - 1})`)
+        break
+      }
+
       weeklyData.push(weekResult)
       console.log(`Successfully fetched week ${week}`)
-      
-      // Add delay between each week (except for the last week)
-      if (week < maxWeeksToFetch) {
+
+      // Add delay between each week (except when we're done)
+      if (week < MAX_POSSIBLE_WEEKS) {
         console.log(`Waiting ${DELAY_MS}ms before next request...`)
         await delay(DELAY_MS)
       }
     } catch (error) {
       console.error(`Error fetching week ${week}:`, error)
-      // For now, continue with partial data rather than failing completely
+      // For current season, stop on first error (no more completed weeks)
+      if (isCurrentSeason) {
+        console.log(`Stopping at week ${week - 1} (last successful week)`)
+        break
+      }
+      // For historical seasons, handle rate limits
       if (error instanceof Error && error.message.includes('429')) {
         console.log(`Rate limited on week ${week}, continuing with partial data`)
-        break // Stop fetching more weeks to avoid further rate limiting
+        break
       }
       throw error
     }
   }
-  
-  console.log(`Successfully fetched ${weeklyData.length} out of ${maxWeeksToFetch} weeks`)
+
+  console.log(`Successfully fetched ${weeklyData.length} weeks for ${year}`)
   if (weeklyData.length === 0) {
     throw new Error('No weekly data could be fetched due to rate limiting')
   }

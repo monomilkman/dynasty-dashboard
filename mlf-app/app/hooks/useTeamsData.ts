@@ -82,7 +82,7 @@ export function useTeamsData({ years, weeks, enabled = true }: UseTeamsDataParam
     queryKey: ['teams', years.sort(), weeks.sort()],
     queryFn: () => fetchAllTeamsData({ years, weeks }),
     enabled: enabled && years.length > 0,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 1 * 60 * 1000, // 1 minute for real-time updates
     gcTime: 10 * 60 * 1000, // 10 minutes
   })
 }
@@ -92,7 +92,7 @@ export function useTeamsDataForYear(year: number, weeks: number[] = []) {
   return useQuery({
     queryKey: ['teams', year, weeks.sort()],
     queryFn: () => fetchTeamsForYear({ year, weeks }),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 1 * 60 * 1000, // 1 minute for real-time updates
     gcTime: 10 * 60 * 1000,
   })
 }
