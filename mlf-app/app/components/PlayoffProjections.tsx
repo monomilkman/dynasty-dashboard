@@ -25,6 +25,166 @@ export default function PlayoffProjections({ year }: PlayoffProjectionsProps) {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const [isRefreshing, setIsRefreshing] = useState(false)
 
+  /**
+   * Backfill historical playoff probability data using matchups API
+   * Reconstructs standings week-by-week and runs simulations for each
+   */
+  const backfillPlayoffHistoryFromMatchups = async (
+    currentWeek: number,
+    divisionsData: DivisionsData
+  ) => {
+    console.log(`[Playoff Backfill] Starting backfill for weeks 1-${currentWeek}`)
+
+    try {
+      // Fetch matchup data for all completed weeks in one API call
+      const weeksParam = Array.from({ length: currentWeek }, (_, i) => i + 1).join(',')
+      const response = await fetch(`/api/mfl/matchups?year=${year}&weeks=${weeksParam}`)
+
+      if (!response.ok) {
+        console.error(`[Playoff Backfill] Failed to fetch matchup data:`, response.status)
+        throw new Error(`Failed to fetch matchup data: ${response.status}`)
+      }
+
+      interface MatchupTeamData {
+        franchiseId: string
+        manager: string
+        teamName: string
+        matchups: Array<{
+          week: number
+          score: number
+          opponentScore: number
+          result: 'W' | 'L' | 'T'
+        }>
+      }
+
+      const matchupData: MatchupTeamData[] = await response.json()
+      const allTeamIds = new Set(matchupData.map(team => team.franchiseId))
+
+      // Process each week sequentially, building up cumulative standings
+      for (let week = 1; week <= currentWeek; week++) {
+        console.log(`[Playoff Backfill] Processing week ${week}...`)
+
+        // Build cumulative standings through this week
+        const teamStandingsMap: Record<string, {
+          wins: number
+          losses: number
+          ties: number
+          pointsFor: number
+          pointsAgainst: number
+          name: string
+        }> = {}
+
+        // Initialize all teams
+        matchupData.forEach(team => {
+          teamStandingsMap[team.franchiseId] = {
+            wins: 0,
+            losses: 0,
+            ties: 0,
+            pointsFor: 0,
+            pointsAgainst: 0,
+            name: team.teamName
+          }
+        })
+
+        // Accumulate stats through this week
+        matchupData.forEach(team => {
+          // Process all matchups up to and including current week
+          team.matchups
+            .filter(m => m.week <= week)
+            .forEach(matchup => {
+              const teamData = teamStandingsMap[team.franchiseId]
+
+              // Update record
+              if (matchup.result === 'W') {
+                teamData.wins++
+              } else if (matchup.result === 'L') {
+                teamData.losses++
+              } else {
+                teamData.ties++
+              }
+
+              // Update points
+              teamData.pointsFor += matchup.score
+              teamData.pointsAgainst += matchup.opponentScore
+            })
+        })
+
+        // Convert to StandingsFranchise format
+        const standingsForWeek: StandingsFranchise[] = Object.entries(teamStandingsMap).map(([id, data]) => {
+          const gamesPlayed = data.wins + data.losses + data.ties
+          return {
+            id,
+            name: data.name,
+            h2hw: data.wins.toString(),
+            h2hl: data.losses.toString(),
+            h2ht: data.ties.toString(),
+            h2hpct: ((data.wins + data.ties * 0.5) / Math.max(1, gamesPlayed)).toFixed(3),
+            h2hwlt: `${data.wins}-${data.losses}-${data.ties}`,
+            pf: data.pointsFor.toFixed(2),
+            pa: data.pointsAgainst.toFixed(2),
+            pp: data.pointsFor.toFixed(2),
+            avgpf: (data.pointsFor / Math.max(1, gamesPlayed)).toFixed(2),
+            avgpa: (data.pointsAgainst / Math.max(1, gamesPlayed)).toFixed(2),
+            divwlt: '0-0-0',
+            strk: '',
+            vp: '0',
+            all_play_w: '0',
+            all_play_l: '0',
+            all_play_t: '0'
+          }
+        })
+
+        // Create empty schedules for historical simulation
+        const emptySchedules: TeamSchedule[] = Array.from(allTeamIds).map(teamId => ({
+          franchiseId: teamId,
+          remainingGames: [],
+          completedGames: week,
+          totalGames: 14
+        }))
+
+        // Calculate playoff probabilities for this week's standings state
+        const probsForWeek = calculatePlayoffProbabilities(
+          standingsForWeek,
+          emptySchedules,
+          divisionsData
+        )
+
+        // Save historical snapshot for this week
+        batchUpdateSnapshots(
+          year,
+          week,
+          probsForWeek.map(p => {
+            const standing = standingsForWeek.find(s => s.id === p.franchiseId)
+            return {
+              franchiseId: p.franchiseId,
+              franchiseName: standing?.name || p.franchiseId,
+              playoffProbability: p.playoffProbability,
+              divisionWinProbability: p.divisionWinProbability,
+              avgSeed: p.averageSeed,
+              wins: parseInt(standing?.h2hw || '0'),
+              losses: parseInt(standing?.h2hl || '0'),
+              ties: parseInt(standing?.h2ht || '0'),
+              pointsFor: parseFloat(standing?.pf || '0'),
+              gamesBack: 0
+            }
+          })
+        )
+
+        console.log(`[Playoff Backfill] ✓ Saved snapshot for week ${week} (Record: ${standingsForWeek[0]?.h2hwlt || 'N/A'})`)
+      }
+
+      // Set flag to prevent re-backfilling
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`mfl_playoff_history_backfilled_${year}`, 'true')
+      }
+
+      console.log(`[Playoff Backfill] ✓ Completed backfill for ${currentWeek} weeks`)
+    } catch (error) {
+      console.error('[Playoff Backfill] Error:', error)
+      throw error
+    }
+  }
+
   // Fetch all necessary data
   const fetchPlayoffData = async () => {
     try {
@@ -61,6 +221,23 @@ export default function PlayoffProjections({ year }: PlayoffProjectionsProps) {
       // Calculate probabilities (after all data is loaded)
       if (standingsData.leagueStandings?.franchise && divisionsData && schedulesData.schedules) {
         console.log('Calculating playoff probabilities...')
+
+        // Check if we need to backfill historical data
+        const needsBackfill = typeof window !== 'undefined' &&
+          !localStorage.getItem(`mfl_playoff_history_backfilled_${year}`) &&
+          week > 1 // Only backfill if we're past week 1
+
+        if (needsBackfill) {
+          console.log('[Playoff Projections] Historical data not found, running backfill...')
+          try {
+            await backfillPlayoffHistoryFromMatchups(week, divisionsData)
+            console.log('[Playoff Projections] ✓ Backfill completed successfully')
+          } catch (backfillError) {
+            console.error('[Playoff Projections] Backfill failed, continuing with current week only:', backfillError)
+            // Continue with normal flow even if backfill fails
+          }
+        }
+
         const probs = calculatePlayoffProbabilities(
           standingsData.leagueStandings.franchise,
           schedulesData.schedules,
@@ -68,7 +245,7 @@ export default function PlayoffProjections({ year }: PlayoffProjectionsProps) {
         )
         setProbabilities(probs)
 
-        // Save historical snapshot and calculate changes
+        // Save historical snapshot for current week and calculate changes
         batchUpdateSnapshots(
           year,
           week,
