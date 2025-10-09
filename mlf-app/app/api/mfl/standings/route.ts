@@ -6,6 +6,7 @@ const LEAGUE_ID = '46221'
 
 export interface StandingsFranchise {
   id: string
+  name?: string       // Team Name (optional, used in historical backfill)
   pa: string          // Points Against
   avgpf: string       // Average Points For
   h2ht: string        // Head-to-Head Ties
