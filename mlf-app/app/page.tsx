@@ -16,6 +16,7 @@ import RankingsTable from './components/RankingsTable'
 import HeadToHeadComparison from './components/HeadToHeadComparison'
 import SeasonBreakdownTable from './components/SeasonBreakdownTable'
 import PlayoffProjections from './components/PlayoffProjections'
+import TradeDepthAnalyzer from './components/TradeDepthAnalyzer'
 import ExportButton from './components/ExportButton'
 import { 
   exportTeamsData, 
@@ -33,7 +34,7 @@ const currentYear = getCurrentYear()
 export default function Home() {
   const [selectedYears, setSelectedYears] = useState<number[]>([currentYear])
   const [selectedWeeks, setSelectedWeeks] = useState<number[]>([]) // Empty array means all weeks
-  const [activeView, setActiveView] = useState<'table' | 'charts' | 'positions' | 'matchups' | 'rankings' | 'comparison' | 'breakdown' | 'playoff'>('table')
+  const [activeView, setActiveView] = useState<'table' | 'charts' | 'positions' | 'matchups' | 'rankings' | 'comparison' | 'breakdown' | 'playoff' | 'trades'>('table')
   const [selectedManagers, setSelectedManagers] = useState<string[]>([])
   const [statFilter, setStatFilter] = useState<'all' | 'offense' | 'defense'>('all')
 
@@ -264,6 +265,16 @@ export default function Home() {
             >
               Playoff Tracker
             </button>
+            <button
+              onClick={() => setActiveView('trades')}
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeView === 'trades'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              Trade Analyzer
+            </button>
           </nav>
         </div>
       </div>
@@ -281,6 +292,7 @@ export default function Home() {
                  activeView === 'comparison' ? 'Team Comparison' :
                  activeView === 'breakdown' ? 'Regular Season vs Postseason Performance' :
                  activeView === 'playoff' ? 'Playoff Probability Tracker' :
+                 activeView === 'trades' ? 'Trade Depth Analyzer' :
                  'Matchups & Records'}
               </h2>
               <div className="flex items-center space-x-4">
@@ -362,6 +374,8 @@ export default function Home() {
               <SeasonBreakdownTable teams={filteredTeams} />
             ) : activeView === 'playoff' ? (
               <PlayoffProjections year={selectedYears[0] || currentYear} />
+            ) : activeView === 'trades' ? (
+              <TradeDepthAnalyzer year={selectedYears[0] || currentYear} />
             ) : (
               <div className="space-y-8">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
