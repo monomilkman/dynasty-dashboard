@@ -33,11 +33,13 @@ export default function PlayoffProjections({ year }: PlayoffProjectionsProps) {
     currentWeek: number,
     divisionsData: DivisionsData
   ) => {
-    console.log(`[Playoff Backfill] Starting backfill for weeks 1-${currentWeek}`)
+    // Only backfill completed weeks (current week is in progress, so use currentWeek - 1)
+    const completedWeeks = Math.max(1, currentWeek - 1)
+    console.log(`[Playoff Backfill] Starting backfill for weeks 1-${completedWeeks} (current week ${currentWeek} in progress)`)
 
     try {
       // Fetch matchup data for all completed weeks in one API call
-      const weeksParam = Array.from({ length: currentWeek }, (_, i) => i + 1).join(',')
+      const weeksParam = Array.from({ length: completedWeeks }, (_, i) => i + 1).join(',')
       const response = await fetch(`/api/mfl/matchups?year=${year}&weeks=${weeksParam}`)
 
       if (!response.ok) {
@@ -60,8 +62,22 @@ export default function PlayoffProjections({ year }: PlayoffProjectionsProps) {
       const matchupData: MatchupTeamData[] = await response.json()
       const allTeamIds = new Set(matchupData.map(team => team.franchiseId))
 
-      // Process each week sequentially, building up cumulative standings
-      for (let week = 1; week <= currentWeek; week++) {
+      // Fetch full season schedule for remaining games simulation
+      // This ensures historical simulations have accurate remaining schedules
+      console.log('[Playoff Backfill] Fetching full season schedule...')
+      const scheduleResponse = await fetch(`/api/mfl/schedule-remaining?year=${year}&currentWeek=14`)
+
+      let fullSeasonSchedules: TeamSchedule[] = []
+      if (scheduleResponse.ok) {
+        const scheduleData = await scheduleResponse.json()
+        fullSeasonSchedules = scheduleData.schedules || []
+        console.log(`[Playoff Backfill] Loaded schedule with ${fullSeasonSchedules.length} teams`)
+      } else {
+        console.warn('[Playoff Backfill] Failed to fetch schedule, using empty schedules')
+      }
+
+      // Process each completed week sequentially, building up cumulative standings
+      for (let week = 1; week <= completedWeeks; week++) {
         console.log(`[Playoff Backfill] Processing week ${week}...`)
 
         // Build cumulative standings through this week
@@ -134,18 +150,28 @@ export default function PlayoffProjections({ year }: PlayoffProjectionsProps) {
           }
         })
 
-        // Create empty schedules for historical simulation
-        const emptySchedules: TeamSchedule[] = Array.from(allTeamIds).map(teamId => ({
-          franchiseId: teamId,
-          remainingGames: [],
-          completedGames: week,
-          totalGames: 14
-        }))
+        // Create schedules with remaining games for this historical week
+        const schedulesForWeek: TeamSchedule[] = fullSeasonSchedules.length > 0
+          ? fullSeasonSchedules.map(schedule => ({
+              franchiseId: schedule.franchiseId,
+              remainingGames: schedule.remainingGames.filter(game => game.week > week),
+              completedGames: week,
+              totalGames: 14
+            }))
+          : Array.from(allTeamIds).map(teamId => ({
+              franchiseId: teamId,
+              remainingGames: [],
+              completedGames: week,
+              totalGames: 14
+            }))
+
+        const remainingGamesCount = schedulesForWeek[0]?.remainingGames.length || 0
+        console.log(`[Playoff Backfill] Week ${week}: ${remainingGamesCount} games remaining per team`)
 
         // Calculate playoff probabilities for this week's standings state
         const probsForWeek = calculatePlayoffProbabilities(
           standingsForWeek,
-          emptySchedules,
+          schedulesForWeek,
           divisionsData
         )
 
@@ -178,7 +204,7 @@ export default function PlayoffProjections({ year }: PlayoffProjectionsProps) {
         localStorage.setItem(`mfl_playoff_history_backfilled_${year}`, 'true')
       }
 
-      console.log(`[Playoff Backfill] ✓ Completed backfill for ${currentWeek} weeks`)
+      console.log(`[Playoff Backfill] ✓ Completed backfill for ${completedWeeks} completed weeks`)
     } catch (error) {
       console.error('[Playoff Backfill] Error:', error)
       throw error
@@ -245,32 +271,40 @@ export default function PlayoffProjections({ year }: PlayoffProjectionsProps) {
         )
         setProbabilities(probs)
 
-        // Save historical snapshot for current week and calculate changes
-        batchUpdateSnapshots(
-          year,
-          week,
-          probs.map(p => {
-            const standing = standingsData.leagueStandings.franchise.find(
-              (f: StandingsFranchise) => f.id === p.franchiseId
-            )
-            return {
-              franchiseId: p.franchiseId,
-              franchiseName: standing?.name || p.franchiseId,
-              playoffProbability: p.playoffProbability,
-              divisionWinProbability: p.divisionWinProbability,
-              avgSeed: p.averageSeed,
-              wins: parseInt(standing?.h2hw || '0'),
-              losses: parseInt(standing?.h2hl || '0'),
-              ties: parseInt(standing?.h2ht || '0'),
-              pointsFor: parseFloat(standing?.pf || '0'),
-              gamesBack: 0
-            }
-          })
-        )
+        // Only save historical snapshot for completed weeks (not current in-progress week)
+        // This prevents showing partial/incomplete data in the trend chart
+        const lastCompletedWeek = week - 1
+        if (lastCompletedWeek > 0) {
+          console.log(`[Playoff Projections] Saving snapshot for last completed week: ${lastCompletedWeek}`)
+
+          // Note: We save based on current standings but attribute it to last completed week
+          // This represents the state "after week X completed"
+          batchUpdateSnapshots(
+            year,
+            lastCompletedWeek,
+            probs.map(p => {
+              const standing = standingsData.leagueStandings.franchise.find(
+                (f: StandingsFranchise) => f.id === p.franchiseId
+              )
+              return {
+                franchiseId: p.franchiseId,
+                franchiseName: standing?.name || p.franchiseId,
+                playoffProbability: p.playoffProbability,
+                divisionWinProbability: p.divisionWinProbability,
+                avgSeed: p.averageSeed,
+                wins: parseInt(standing?.h2hw || '0'),
+                losses: parseInt(standing?.h2hl || '0'),
+                ties: parseInt(standing?.h2ht || '0'),
+                pointsFor: parseFloat(standing?.pf || '0'),
+                gamesBack: 0
+              }
+            })
+          )
+        }
 
         const changes: Record<string, number | null> = {}
         probs.forEach(p => {
-          changes[p.franchiseId] = getProbabilityChange(p.franchiseId, year, week)
+          changes[p.franchiseId] = getProbabilityChange(p.franchiseId, year, lastCompletedWeek > 0 ? lastCompletedWeek : 1)
         })
         setProbabilityChanges(changes)
       }
