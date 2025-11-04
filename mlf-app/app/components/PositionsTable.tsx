@@ -728,7 +728,6 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
           anchorElement={selectedTooltip.anchorElement}
         />
       )}
-      )}
 
       {/* Points Behind View */}
       {activeView === 'gaps' && (
