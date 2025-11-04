@@ -11,7 +11,7 @@ interface LeaderboardProps {
   selectedWeeks?: number[]
 }
 
-type SortField = keyof Pick<Team, 'manager' | 'teamName' | 'startersPoints' | 'benchPoints' | 'offensePoints' | 'defensePoints' | 'totalPoints' | 'potentialPoints'> | 'efficiency'
+type SortField = keyof Pick<Team, 'manager' | 'teamName' | 'startersPoints' | 'benchPoints' | 'offensePoints' | 'defensePoints' | 'totalPoints' | 'potentialPoints' | 'wins' | 'losses' | 'winPercentage'> | 'efficiency'
 type SortDirection = 'asc' | 'desc' | null
 
 function Leaderboard({ teams, selectedWeeks = [] }: LeaderboardProps) {
@@ -24,26 +24,40 @@ function Leaderboard({ teams, selectedWeeks = [] }: LeaderboardProps) {
   const sortedTeams = useMemo(() => {
     if (sortDirection) {
       return [...teams].sort((a, b) => {
+        // Special handling for wins or losses sorting with multi-level tiebreakers
+        if (sortField === 'wins' || sortField === 'losses') {
+          // Sort by wins first (descending - more wins is better)
+          const winsDiff = b.wins - a.wins
+          if (winsDiff !== 0) return winsDiff
+
+          // If wins are equal, sort by losses (ascending - fewer losses is better)
+          const lossesDiff = a.losses - b.losses
+          if (lossesDiff !== 0) return lossesDiff
+
+          // If both wins and losses are equal, sort by total points (descending)
+          return (b.startersPoints + b.benchPoints) - (a.startersPoints + a.benchPoints)
+        }
+
         // Special handling for efficiency sorting
         if (sortField === 'efficiency') {
           const aEfficiency = a.efficiency || 0  // Use the efficiency field from Team interface
           const bEfficiency = b.efficiency || 0  // Use the efficiency field from Team interface
           return sortDirection === 'asc' ? aEfficiency - bEfficiency : bEfficiency - aEfficiency
         }
-        
+
         const aValue = a[sortField as keyof Team]
         const bValue = b[sortField as keyof Team]
-        
+
         if (typeof aValue === 'string' && typeof bValue === 'string') {
-          return sortDirection === 'asc' 
+          return sortDirection === 'asc'
             ? aValue.localeCompare(bValue)
             : bValue.localeCompare(aValue)
         }
-        
+
         if (typeof aValue === 'number' && typeof bValue === 'number') {
           return sortDirection === 'asc' ? aValue - bValue : bValue - aValue
         }
-        
+
         return 0
       })
     }
@@ -85,6 +99,17 @@ function Leaderboard({ teams, selectedWeeks = [] }: LeaderboardProps) {
     return 'bg-white text-gray-900'
   }
 
+  const getRecordStyle = (wins: number, losses: number) => {
+    const totalGames = wins + losses
+    if (totalGames === 0) return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+
+    const winPct = wins / totalGames
+    if (winPct >= 0.8) return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+    if (winPct >= 0.6) return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+    if (winPct >= 0.4) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+    return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+  }
+
   return (
     <div className="overflow-x-auto">
       {selectedWeeks.length > 0 && (
@@ -122,6 +147,15 @@ function Leaderboard({ teams, selectedWeeks = [] }: LeaderboardProps) {
               >
                 Manager
                 {getSortIcon('manager')}
+              </button>
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider">
+              <button
+                onClick={() => handleSort('wins')}
+                className="flex items-center justify-center hover:text-blue-200 transition-colors"
+              >
+                Record
+                {getSortIcon('wins')}
               </button>
             </th>
             <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider">
@@ -212,6 +246,11 @@ function Leaderboard({ teams, selectedWeeks = [] }: LeaderboardProps) {
               </td>
               <td className="px-4 py-3 text-sm text-gray-900">
                 {team.manager}
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap text-center">
+                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRecordStyle(team.wins, team.losses)}`}>
+                  {team.wins}-{team.losses}{team.ties > 0 && `-${team.ties}`}
+                </span>
               </td>
               <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-900 font-medium">
                 {formatPoints(team.startersPoints)}

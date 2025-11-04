@@ -1,11 +1,10 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback, memo } from 'react'
+import { useState, useMemo, memo } from 'react'
 import { Team } from '@/lib/mfl'
 import { ArrowUpDown, ArrowUp, ArrowDown, Trophy, Target } from 'lucide-react'
 import { formatTeamDisplay, getUniqueYears, formatYearsDisplay } from '@/lib/team-utils'
 import { formatPoints, formatPercentage, formatDecimal } from '@/lib/utils'
-import { useMatchupsData } from '../hooks/useMatchupsData'
 
 interface MatchupsTableProps {
   teams: Team[]
@@ -42,66 +41,27 @@ type SortDirection = 'asc' | 'desc' | null
 function MatchupsTable({ teams, selectedWeeks }: MatchupsTableProps) {
   const [sortField, setSortField] = useState<SortField>('wins')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
-  const [matchupsData, setMatchupsData] = useState<TeamMatchupSummary[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  
+
   const uniqueYears = useMemo(() => getUniqueYears(teams), [teams])
   const hasMultipleYears = uniqueYears.length > 1
 
-  const fetchMatchupsData = useCallback(async () => {
-    if (uniqueYears.length === 0) return
-    
-    setIsLoading(true)
-    setError(null)
-    
-    try {
-      const allMatchupsData: TeamMatchupSummary[] = []
-      
-      // Fetch matchups for each year
-      for (const year of uniqueYears) {
-        const weeksParam = selectedWeeks.length > 0 ? selectedWeeks.join(',') : ''
-        const response = await fetch(`/api/mfl/matchups?year=${year}&weeks=${weeksParam}`)
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch matchups for ${year}: ${response.status}`)
-        }
-        
-        const yearData = await response.json()
-        if (Array.isArray(yearData)) {
-          allMatchupsData.push(...yearData)
-        }
-      }
-      
-      setMatchupsData(allMatchupsData)
-    } catch (err) {
-      console.error('Error fetching matchups data:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load matchups data')
-      // Fallback to team data if available
-      if (teams.length > 0) {
-        const fallbackData: TeamMatchupSummary[] = teams.map(team => ({
-          franchiseId: team.id,
-          manager: team.manager,
-          teamName: team.teamName,
-          wins: team.wins || 0,
-          losses: team.losses || 0,
-          ties: team.ties || 0,
-          pointsFor: team.pointsFor || team.totalPoints,
-          pointsAgainst: team.pointsAgainst || 0,
-          winPercentage: team.winPercentage || 0,
-          matchups: [],
-          year: team.year
-        }))
-        setMatchupsData(fallbackData)
-      }
-    } finally {
-      setIsLoading(false)
-    }
-  }, [uniqueYears, selectedWeeks, teams])
-
-  useEffect(() => {
-    fetchMatchupsData()
-  }, [fetchMatchupsData])
+  // Convert teams data directly to matchups format
+  // This uses MFL's official standings data which is the source of truth
+  const matchupsData = useMemo(() => {
+    return teams.map(team => ({
+      franchiseId: team.id,
+      manager: team.manager,
+      teamName: team.teamName,
+      wins: team.wins || 0,
+      losses: team.losses || 0,
+      ties: team.ties || 0,
+      pointsFor: team.pointsFor || team.totalPoints,
+      pointsAgainst: team.pointsAgainst || 0,
+      winPercentage: team.winPercentage || 0,
+      matchups: [], // Detailed matchup history not needed for this view
+      year: team.year
+    }))
+  }, [teams])
 
   const sortedTeams = useMemo(() => {
     if (sortDirection) {
@@ -210,24 +170,6 @@ function MatchupsTable({ teams, selectedWeeks }: MatchupsTableProps) {
             }
           </p>
         </div>
-
-        {isLoading && (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2 text-gray-600 dark:text-gray-400">Loading matchups data...</span>
-          </div>
-        )}
-
-        {error && (
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
-            <p className="text-yellow-800 dark:text-yellow-200 text-sm">
-              {error}
-            </p>
-            <p className="text-yellow-600 dark:text-yellow-300 text-xs mt-1">
-              Showing fallback data from team standings.
-            </p>
-          </div>
-        )}
 
         <table className="min-w-full">
           <thead>

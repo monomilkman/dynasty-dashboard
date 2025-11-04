@@ -1,5 +1,175 @@
 # MyFantasyLeague App - Changelog
 
+## [Phase 2.4.0] - 2025-11-04 - Advanced Position Analysis & Trade Intelligence
+
+### 🎯 Major Feature: Comprehensive Position Analysis System
+- **NEW**: Multi-view position analysis with three complementary perspectives
+- **NEW**: Team Weakness Analyzer with automated trade recommendations
+- **NEW**: Win-loss records integrated into Leaderboard display
+- **ENHANCED**: Interactive tooltips showing detailed gap analysis
+- **ADDED**: Export functionality for trade intelligence reports (CSV and Text formats)
+
+### 📊 Sprint 1: Team Records in Leaderboard
+- **ADDED**: Win-loss record column with color-coded badges
+- **IMPLEMENTED**: Multi-level sorting (wins → losses → points)
+- **ENHANCED**: Record display with ties support ("W-L" or "W-L-T" format)
+- **COLOR CODING**: Green (≥75%), Blue (50-74%), Yellow (25-49%), Red (<25%)
+
+### 🔍 Sprint 2: Multi-View Position Analysis
+
+#### New Position Analysis Utilities (`lib/position-analysis-utils.ts`)
+- **CREATED**: Complete gap analysis calculation system
+- **FUNCTIONS**: `calculatePositionGap()`, `calculateAllPositionGaps()`, `calculatePercentile()`
+- **ANALYSIS**: `analyzeTeamPositions()` comprehensive team strength/weakness evaluation
+- **COLOR HELPERS**: Heat map utilities for visual feedback
+
+#### Three Complementary Views
+1. **Position Rankings View** (Traditional)
+   - Standard position rankings with points
+   - Sortable by any position
+   - Existing functionality preserved
+
+2. **Points Behind View** (`app/components/PointsBehindView.tsx`)
+   - Shows gap from first place (negative numbers)
+   - 5-tier heat map (gold, green, yellow, orange, red)
+   - Blue-themed table header
+   - Click-triggered tooltips
+
+3. **Percentile View** (`app/components/PercentileView.tsx`)
+   - Percentile rankings (100% = 1st, 0% = last)
+   - 6-tier color scheme (dark green to red)
+   - Average percentile column
+   - Purple-themed table header
+
+#### Interactive Tooltip System (`app/components/PositionTooltip.tsx`)
+- **INTERACTION**: Click-only activation (mobile-friendly)
+- **POSITIONING**: Smart auto-positioning (stays on screen)
+- **CONTROLS**: Close on Escape key or click outside
+- **DATA DISPLAY**:
+  - Rank and percentile
+  - Points total
+  - Gap from 1st place (with team name)
+  - Gap from average, median, last place
+  - Top 3 leaders with points
+
+#### Tab Navigation (`app/components/PositionViewTabs.tsx`)
+- **ICONS**: Lucide icons for visual clarity (BarChart3, TrendingDown, Percent)
+- **ACCESSIBILITY**: Full keyboard navigation support
+- **RESPONSIVE**: Mobile-optimized tab switching
+
+### 🤖 Sprint 3: Team Weakness Analyzer
+
+#### Core Analyzer Component (`app/components/TeamWeaknessAnalyzer.tsx`)
+- **COLLAPSIBLE PANEL**: Gradient header (indigo-to-purple) with expand/collapse
+- **TEAM SELECTOR**: Dropdown for all teams with manager names
+- **OVERALL METRICS**: Average rank, average percentile, total gap from leaders
+
+#### Top 3 Weaknesses Analysis
+- **RED-THEMED CARDS**: Severity indicators with numbered badges (1, 2, 3)
+- **IMPACT SCORES**: 0-1 scale calculated from percentile, gaps from 1st/average
+- **IMPACT FORMULA**: (percentileImpact × 0.5) + (gapImpact × 0.3) + (avgGapImpact × 0.2)
+- **RECOMMENDATIONS**: Position-specific trade advice based on severity
+  - High priority (>0.8): "High-priority upgrade needed..."
+  - Medium priority (>0.6): "Consider upgrading through trades..."
+  - Monitor (>0.4): "Monitor for waiver wire improvements..."
+
+#### Top 3 Strengths Analysis
+- **GREEN-THEMED CARDS**: Asset identification with numbered badges
+- **LEAGUE LEADERS**: Highlighted with "League Leader" status
+- **TRADE POTENTIAL**: Recommendations for leveraging strengths
+- **ASSET IDENTIFICATION**: Positions suitable for trade negotiations
+
+#### Overall Strategy Recommendation
+- **SYNTHESIS**: Comprehensive summary combining all analysis
+- **ACTION-ORIENTED**: Specific strategic advice
+- **HIGHLIGHTED DISPLAY**: Visual prominence with gradient background
+
+### 📥 Export Functionality
+
+#### Text Export (.txt format)
+- **FORMATTED REPORT**: Clean sections with headers
+- **COMPREHENSIVE**: All metrics and recommendations included
+- **TIMESTAMPED**: Generation date and team info
+- **READABLE**: Plain text format for sharing
+
+#### CSV Export (.csv format)
+- **SPREADSHEET COMPATIBLE**: Excel/Google Sheets ready
+- **STRUCTURED DATA**: Separate sections for metrics, weaknesses, strengths
+- **COMPLETE DATASET**: All numerical data and recommendations included
+
+### 🎨 Design & UX Features
+
+#### Color Schemes
+- **Points Behind**: Blue headers, 5-tier heat map
+- **Percentile**: Purple headers, 6-tier gradient
+- **Analyzer**: Indigo-purple gradient, red/green cards
+
+#### Interaction Patterns
+- **CLICK-ONLY TOOLTIPS**: Clean UX, mobile compatible
+- **COLLAPSIBLE PANELS**: Uncluttered interface
+- **SORTABLE COLUMNS**: Flexible data exploration
+- **TAB NAVIGATION**: Easy mode switching
+
+#### Data Presentation
+- **NEGATIVE NUMBERS**: "Points behind" format (e.g., "-45.2")
+- **PERCENTAGES**: Percentile display (e.g., "58%")
+- **DECIMAL PRECISION**: 2 decimal places for impact scores
+- **CLEAR LABELS**: "Gap from 1st", "Gap from Avg", etc.
+
+### 🔧 Technical Implementation
+
+#### New Files Created (6)
+1. `lib/position-analysis-utils.ts` - Gap analysis algorithms
+2. `app/components/PositionViewTabs.tsx` - Tab navigation
+3. `app/components/PointsBehindView.tsx` - Gap analysis view
+4. `app/components/PercentileView.tsx` - Percentile rankings view
+5. `app/components/PositionTooltip.tsx` - Interactive tooltip
+6. `app/components/TeamWeaknessAnalyzer.tsx` - Trade intelligence analyzer
+
+#### Files Modified (2)
+1. `app/components/Leaderboard.tsx` - Added Record column with sorting
+2. `app/components/PositionsTable.tsx` - Integrated multi-view system and analyzer
+
+#### Key Technical Features
+- **MEMOIZATION**: Extensive use of `useMemo` for performance
+- **TYPE SAFETY**: Complete TypeScript interfaces for all data structures
+- **ACCESSIBILITY**: ARIA labels, keyboard navigation, screen reader support
+- **RESPONSIVE DESIGN**: Mobile-friendly layouts with breakpoints
+- **DARK MODE**: Complete dark mode compatibility
+- **COLOR THEORY**: Strategic color-coding for instant visual feedback
+- **SMART POSITIONING**: Auto-positioning tooltips that stay on screen
+- **EQUAL WEIGHTING**: Fair position analysis without positional bias
+
+### 🎯 User Benefits
+
+#### For Team Managers
+- **QUICK ASSESSMENT**: Win-loss records at a glance
+- **WEAKNESS IDENTIFICATION**: Instantly identify positions needing improvement
+- **TRADE SUPPORT**: Specific recommendations on who to target
+- **MULTIPLE PERSPECTIVES**: View data as ranks, gaps, or percentiles
+- **COMPETITIVE ANALYSIS**: Compare position performance to league leaders
+- **OFFLINE ANALYSIS**: Export reports for sharing
+
+#### For League Analysis
+- **STRENGTH DISTRIBUTION**: See how teams compare across positions
+- **TRADE MARKET**: Identify teams with surplus at positions
+- **LEAGUE BALANCE**: Understand performance distribution
+- **STRATEGIC PLANNING**: Data-driven trade and acquisition decisions
+
+### ✅ Integration & Compatibility
+- **OFFENSE/DEFENSE FILTERING**: Analyzer respects existing filters
+- **EQUAL POSITION WEIGHTING**: All positions treated fairly (including flex)
+- **FILTER COMPATIBILITY**: Works with year/week/manager filters
+- **EXPORT INTEGRATION**: All data exportable in multiple formats
+
+### 🚀 Production Impact
+- **ZERO BREAKING CHANGES**: All existing functionality preserved
+- **ENHANCED ANALYTICS**: New insights into team composition
+- **TRADE INTELLIGENCE**: Actionable recommendations for improvements
+- **PROFESSIONAL UX**: Clean, intuitive interface with visual hierarchy
+
+---
+
 ## [Phase 2.3.1] - 2025-01-10 - Playoff Clinching Logic Enhancement
 
 ### 🎯 Enhanced Playoff Probability Display

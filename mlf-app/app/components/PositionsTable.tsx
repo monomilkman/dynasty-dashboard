@@ -23,7 +23,16 @@ import {
   PositionKey,
   ComparisonType
 } from '@/lib/position-utils'
+import {
+  calculatePositionGap,
+  PositionGapData
+} from '@/lib/position-analysis-utils'
 import ComparisonModeMultiSelect from './ComparisonModeMultiSelect'
+import PositionTooltip from './PositionTooltip'
+import PositionViewTabs, { PositionViewType } from './PositionViewTabs'
+import PointsBehindView from './PointsBehindView'
+import PercentileView from './PercentileView'
+import TeamWeaknessAnalyzer from './TeamWeaknessAnalyzer'
 
 // Extended type for rows that includes comparison rows
 type TableRow = (TeamPositionalData & { avgRank: number, isAverageRow: boolean, comparisonType?: ComparisonType })
@@ -44,6 +53,8 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [comparisonModes, setComparisonModes] = useState<ComparisonType[]>(['mean'])
+  const [selectedTooltip, setSelectedTooltip] = useState<{ position: PositionKey; franchiseId: string; anchorElement: HTMLElement } | null>(null)
+  const [activeView, setActiveView] = useState<PositionViewType>('rankings')
   
   const uniqueYears = useMemo(() => getUniqueYears(teams), [teams])
   const hasMultipleYears = uniqueYears.length > 1
@@ -265,6 +276,27 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
     window.URL.revokeObjectURL(url)
   }
 
+  // Handle clicking on a position cell to show tooltip
+  const handlePositionCellClick = (
+    event: React.MouseEvent<HTMLSpanElement>,
+    position: PositionKey,
+    franchiseId: string
+  ) => {
+    event.stopPropagation()
+    const element = event.currentTarget as HTMLElement
+    setSelectedTooltip({ position, franchiseId, anchorElement: element })
+  }
+
+  // Calculate gap data for tooltip
+  const tooltipGapData = useMemo((): PositionGapData | null => {
+    if (!selectedTooltip || !positionalData) return null
+    return calculatePositionGap(
+      selectedTooltip.franchiseId,
+      selectedTooltip.position,
+      positionalData
+    )
+  }, [selectedTooltip, positionalData])
+
 
   if (isLoading) {
     return (
@@ -478,8 +510,21 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
           </button>
         </div>
       </div>
-      
-      {/* Main table */}
+
+      {/* Team Weakness Analyzer */}
+      <TeamWeaknessAnalyzer
+        positionalData={positionalData}
+        statFilter={statFilter}
+      />
+
+      {/* View Tabs */}
+      <PositionViewTabs
+        activeView={activeView}
+        onViewChange={setActiveView}
+      />
+
+      {/* Conditional View Rendering */}
+      {activeView === 'rankings' && (
       <div className="overflow-x-auto w-full min-w-[1200px]">
         <table className="w-full border border-gray-200 dark:border-gray-700">
           <thead>
@@ -627,7 +672,19 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
 
                     return (
                       <td key={position} className="px-3 py-2 text-center text-sm border-r border-gray-200 dark:border-gray-700">
-                        <span className={`inline-flex items-center justify-center px-2 py-1 rounded text-xs font-medium ${colorClass}`}>
+                        <span
+                          className={`inline-flex items-center justify-center px-2 py-1 rounded text-xs font-medium ${colorClass} cursor-pointer hover:opacity-80 transition-opacity`}
+                          onClick={(e) => handlePositionCellClick(e, position, team.franchiseId)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              handlePositionCellClick(e as any, position, team.franchiseId)
+                            }
+                          }}
+                          aria-label={`View ${position} analysis for ${team.teamName}`}
+                        >
                           {formatPositionDisplay(teamRanking.rank, teamRanking.points)}
                         </span>
                       </td>
@@ -662,6 +719,36 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
           </tbody>
         </table>
       </div>
+
+      {/* Position Tooltip */}
+      {selectedTooltip && tooltipGapData && (
+        <PositionTooltip
+          gapData={tooltipGapData}
+          onClose={() => setSelectedTooltip(null)}
+          anchorElement={selectedTooltip.anchorElement}
+        />
+      )}
+      )}
+
+      {/* Points Behind View */}
+      {activeView === 'gaps' && (
+        <PointsBehindView
+          positionalData={positionalData}
+          teamRecordsMap={teamRecordsMap}
+          statFilter={statFilter}
+          hasMultipleYears={hasMultipleYears}
+        />
+      )}
+
+      {/* Percentile View */}
+      {activeView === 'percentile' && (
+        <PercentileView
+          positionalData={positionalData}
+          teamRecordsMap={teamRecordsMap}
+          statFilter={statFilter}
+          hasMultipleYears={hasMultipleYears}
+        />
+      )}
     </div>
   )
 }
