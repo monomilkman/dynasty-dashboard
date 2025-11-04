@@ -325,13 +325,23 @@ export async function normalizeTeamData(mflData: MFLStandingsResponse, year: num
     const detailedScoringLookup: { [key: string]: Record<string, unknown> } = {}
     if (Array.isArray(detailedScoring)) {
       console.log(`Processing detailed scoring data for ${detailedScoring.length} teams`)
-      detailedScoring.forEach((team: unknown) => {
+      detailedScoring.forEach((team: unknown, idx: number) => {
         const t = team as Record<string, unknown>
+
+        // Debug: Show the actual keys in the first item
+        if (idx === 0 && detailedScoring.length > 0) {
+          console.log(`🔍 First detailedScoring item keys:`, Object.keys(t))
+          console.log(`🔍 First detailedScoring item:`, JSON.stringify(t, null, 2))
+        }
+
         if (t.franchiseId as string) {
           detailedScoringLookup[t.franchiseId as string] = t
+          if (idx === 0) {
+            console.log(`✓ Successfully mapped franchise ${t.franchiseId}`)
+          }
         }
       })
-      console.log(`Detailed scoring lookup available for fallback`)
+      console.log(`Detailed scoring lookup available for ${Object.keys(detailedScoringLookup).length} franchises`)
     }
     
     // Debug logging
@@ -364,10 +374,10 @@ export async function normalizeTeamData(mflData: MFLStandingsResponse, year: num
         benchPoints = (detailedData.benchPoints as number) || 0
         offensePoints = (detailedData.offensePoints as number) || 0
         defensePoints = (detailedData.defensePoints as number) || 0
-        totalPoints = startersPoints  // Total = starters (matches MFL API spec)
+        totalPoints = startersPoints + benchPoints  // Total = starters + bench (complete team scoring)
         potentialPoints = (detailedData.potentialPoints as number) || 0
 
-        console.log(`Using detailed calculated data for ${franchiseId}: Total=${totalPoints}, Starters=${startersPoints}, Potential=${potentialPoints}`)
+        console.log(`✅ Using detailed calculated data for ${franchiseId}: Total=${totalPoints}, Starters=${startersPoints}, Bench=${benchPoints}, Potential=${potentialPoints}`)
       } else {
         // Fallback to MFL's provided season totals when detailed data is not available
         const mflTotalPoints = parseFloat((f.pf as string) || '0') || 0
