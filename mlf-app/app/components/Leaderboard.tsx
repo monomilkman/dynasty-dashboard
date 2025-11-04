@@ -226,7 +226,7 @@ function Leaderboard({ teams, selectedWeeks = [] }: LeaderboardProps) {
                 {formatPoints(team.defensePoints)}
               </td>
               <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-900 font-bold">
-                {formatPoints(team.totalPoints)}
+                {formatPoints(team.startersPoints + team.benchPoints)}
               </td>
               <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-600">
                 {formatPoints(team.potentialPoints)}

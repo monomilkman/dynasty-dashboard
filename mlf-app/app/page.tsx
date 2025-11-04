@@ -18,13 +18,15 @@ import SeasonBreakdownTable from './components/SeasonBreakdownTable'
 import PlayoffProjections from './components/PlayoffProjections'
 import TradeDepthAnalyzer from './components/TradeDepthAnalyzer'
 import ExportButton from './components/ExportButton'
-import { 
-  exportTeamsData, 
-  exportMatchupsData, 
-  exportPositionalData, 
+import Sidebar from './components/Sidebar'
+import { Menu } from 'lucide-react'
+import {
+  exportTeamsData,
+  exportMatchupsData,
+  exportPositionalData,
   exportChartData,
   exportComparisonData,
-  ExportOptions 
+  ExportOptions
 } from '@/lib/export-utils'
 
 // Available years (dynamically calculated) - moved outside component to prevent re-creation
@@ -37,6 +39,7 @@ export default function Home() {
   const [activeView, setActiveView] = useState<'table' | 'charts' | 'positions' | 'matchups' | 'rankings' | 'comparison' | 'breakdown' | 'playoff' | 'trades'>('table')
   const [selectedManagers, setSelectedManagers] = useState<string[]>([])
   const [statFilter, setStatFilter] = useState<'all' | 'offense' | 'defense'>('all')
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   // Use React Query for data fetching
   const {
@@ -107,15 +110,35 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <header className="bg-blue-600 dark:bg-blue-800 text-white">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">MyFantasyLeague Stats Tracker</h1>
-            <ThemeToggle />
+      {/* Sidebar Navigation */}
+      <Sidebar
+        activeView={activeView}
+        onViewChange={setActiveView}
+        isMobileMenuOpen={isMobileMenuOpen}
+        setIsMobileMenuOpen={setIsMobileMenuOpen}
+      />
+
+      {/* Main content area - offset by sidebar on desktop */}
+      <div className="lg:ml-64 min-h-screen">
+        {/* Header */}
+        <header className="bg-blue-600 dark:bg-blue-800 text-white">
+          <div className="max-w-7xl mx-auto px-4 py-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                {/* Hamburger menu button - mobile only */}
+                <button
+                  onClick={() => setIsMobileMenuOpen(true)}
+                  className="lg:hidden text-white hover:text-gray-200 transition-colors"
+                  aria-label="Open menu"
+                >
+                  <Menu className="w-6 h-6" />
+                </button>
+                <h1 className="text-2xl font-bold">MyFantasyLeague Stats Tracker</h1>
+              </div>
+              <ThemeToggle />
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
       {/* Controls Section */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
@@ -181,106 +204,8 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4">
-          <nav className="flex space-x-8">
-            <button 
-              onClick={() => setActiveView('table')}
-              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeView === 'table' 
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-            >
-              Table View
-            </button>
-            <button 
-              onClick={() => setActiveView('charts')}
-              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeView === 'charts' 
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-            >
-              Charts View
-            </button>
-            <button 
-              onClick={() => setActiveView('positions')}
-              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeView === 'positions' 
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-            >
-              Positions View
-            </button>
-            <button 
-              onClick={() => setActiveView('matchups')}
-              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeView === 'matchups' 
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-            >
-              Matchups & Records
-            </button>
-            <button 
-              onClick={() => setActiveView('rankings')}
-              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeView === 'rankings' 
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-            >
-              Rankings
-            </button>
-            <button 
-              onClick={() => setActiveView('comparison')}
-              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeView === 'comparison' 
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-            >
-              Compare Teams
-            </button>
-            <button
-              onClick={() => setActiveView('breakdown')}
-              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeView === 'breakdown'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-            >
-              Season Breakdown
-            </button>
-            <button
-              onClick={() => setActiveView('playoff')}
-              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeView === 'playoff'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-            >
-              Playoff Tracker
-            </button>
-            <button
-              onClick={() => setActiveView('trades')}
-              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeView === 'trades'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-            >
-              Trade Analyzer
-            </button>
-          </nav>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-6">
+        {/* Main Content */}
+        <main className="max-w-7xl mx-auto px-4 py-6">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
@@ -404,6 +329,7 @@ export default function Home() {
           </p>
         </div>
       </main>
+      </div>
     </div>
   )
 }
