@@ -28,3 +28,40 @@
   background-color: #fee2e2;
   color: #991b1b;
 }
+
+/* Comparison row styles for different statistical measures */
+.comparison-row-mean {
+  background-color: #fef3c7;
+  border-top: 2px solid #f59e0b;
+  border-bottom: 2px solid #f59e0b;
+}
+
+.dark .comparison-row-mean {
+  background-color: #78350f;
+  border-top: 2px solid #f59e0b;
+  border-bottom: 2px solid #f59e0b;
+}
+
+.comparison-row-median {
+  background-color: #e9d5ff;
+  border-top: 2px solid #a855f7;
+  border-bottom: 2px solid #a855f7;
+}
+
+.dark .comparison-row-median {
+  background-color: #581c87;
+  border-top: 2px solid #a855f7;
+  border-bottom: 2px solid #a855f7;
+}
+
+.comparison-row-trimmedMean {
+  background-color: #ccfbf1;
+  border-top: 2px solid #14b8a6;
+  border-bottom: 2px solid #14b8a6;
+}
+
+.dark .comparison-row-trimmedMean {
+  background-color: #134e4a;
+  border-top: 2px solid #14b8a6;
+  border-bottom: 2px solid #14b8a6;
+}

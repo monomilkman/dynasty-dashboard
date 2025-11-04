@@ -18,12 +18,15 @@ import {
   sortTeamsByAverageRanking,
   preparePositionExportData,
   createAverageRowData,
+  createComparisonRows,
   calculateLeagueAverages,
-  PositionKey
+  PositionKey,
+  ComparisonType
 } from '@/lib/position-utils'
+import ComparisonModeMultiSelect from './ComparisonModeMultiSelect'
 
-// Extended type for rows that includes the average row
-type TableRow = (TeamPositionalData & { avgRank: number, isAverageRow: boolean })
+// Extended type for rows that includes comparison rows
+type TableRow = (TeamPositionalData & { avgRank: number, isAverageRow: boolean, comparisonType?: ComparisonType })
 
 interface PositionsTableProps {
   teams: Team[]
@@ -40,6 +43,7 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [comparisonModes, setComparisonModes] = useState<ComparisonType[]>(['mean'])
   
   const uniqueYears = useMemo(() => getUniqueYears(teams), [teams])
   const hasMultipleYears = uniqueYears.length > 1
@@ -114,7 +118,7 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
     return recordsMap
   }, [teams])
 
-  // Sort teams based on selected field, including league average row
+  // Sort teams based on selected field, including comparison rows
   const sortedTeams = useMemo((): TableRow[] => {
     if (!positionalData) return []
 
@@ -125,12 +129,12 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
       isAverageRow: false
     }))
 
-    // Create and add the league average row
-    const averageRow: TableRow = createAverageRowData(positionalData)
-    console.log('🔍 [PositionsTable] Created average row:', averageRow)
-    const allRows: TableRow[] = [...teamsWithAvgRank, averageRow]
-    console.log(`🔍 [PositionsTable] Total rows (including average): ${allRows.length}`,
-      `Teams: ${teamsWithAvgRank.length}, Average rows: 1`)
+    // Create comparison rows based on selected modes
+    const comparisonRows: TableRow[] = createComparisonRows(positionalData, comparisonModes)
+    console.log('🔍 [PositionsTable] Created comparison rows:', comparisonRows.length, comparisonModes)
+    const allRows: TableRow[] = [...teamsWithAvgRank, ...comparisonRows]
+    console.log(`🔍 [PositionsTable] Total rows: ${allRows.length}`,
+      `Teams: ${teamsWithAvgRank.length}, Comparison rows: ${comparisonRows.length}`)
 
     if (sortDirection && sortField) {
       allRows.sort((a, b) => {
@@ -189,7 +193,7 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
     }
 
     return allRows
-  }, [positionalData, sortField, sortDirection, teamRecordsMap])
+  }, [positionalData, sortField, sortDirection, teamRecordsMap, comparisonModes])
 
   const handleSort = (field: string) => {
     if (sortField === field) {
@@ -233,8 +237,8 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
   
   const handleExport = () => {
     if (!positionalData) return
-    
-    const exportData = preparePositionExportData(positionalData)
+
+    const exportData = preparePositionExportData(positionalData, comparisonModes)
     const csv = convertToCSV(exportData)
     downloadCSV(csv, `positional-data-${positionalData.leagueSettings.year}.csv`)
   }
@@ -422,18 +426,18 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
     <div className="space-y-6">
       {/* Header with controls */}
       <div className="flex items-center justify-between">
-        <div>
+        <div className="flex-1">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {selectedWeeks.length === 0 ? 'All Position Rankings' : 
+            {selectedWeeks.length === 0 ? 'All Position Rankings' :
              selectedWeeks.length === 1 ? `Week ${selectedWeeks[0]} Position Rankings` :
              `Position Rankings (${selectedWeeks.length} weeks)`}
           </h3>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             {positionalData.teams.length} teams • {positionalData.leagueSettings.year} season
             {selectedWeeks.length > 0 && (
-              <span className="ml-2">• {selectedWeeks.length === 1 
-                ? `Week ${selectedWeeks[0]}` 
-                : selectedWeeks.length === 17 
+              <span className="ml-2">• {selectedWeeks.length === 1
+                ? `Week ${selectedWeeks[0]}`
+                : selectedWeeks.length === 17
                   ? 'All weeks'
                   : `Weeks: ${selectedWeeks.sort((a,b) => a-b).slice(0,3).join(', ')}${selectedWeeks.length > 3 ? ` (+${selectedWeeks.length-3} more)` : ''}`
               }</span>
@@ -443,7 +447,18 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
             )}
           </p>
         </div>
-        
+
+        {/* Comparison Mode Selector */}
+        <div className="mx-4" style={{ minWidth: '200px', maxWidth: '250px' }}>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Comparison Baseline:
+          </label>
+          <ComparisonModeMultiSelect
+            selectedModes={comparisonModes}
+            onSelectionChange={setComparisonModes}
+          />
+        </div>
+
         <div className="flex space-x-2">
           <button
             onClick={handleExport}
@@ -452,7 +467,7 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
             <Download className="h-4 w-4 mr-2" />
             Export
           </button>
-          
+
           <button
             onClick={() => fetchPositionalData(true)}
             className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors"
@@ -525,19 +540,20 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
           
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {sortedTeams.map((team: TableRow, index) => {
-              const isAverage = team.isAverageRow
-              const avgRankData = isAverage ? { avgRank: team.avgRank } : calculateAverageRanking(team, positionalData)
+              const isComparison = team.isAverageRow
+              const avgRankData = isComparison ? { avgRank: team.avgRank } : calculateAverageRanking(team, positionalData)
               const teamRecord = teamRecordsMap.get(team.franchiseId) || { wins: 0, losses: 0, ties: 0 }
 
-              // Debug logging for average row
-              if (isAverage) {
-                console.log('🟡 [PositionsTable] Rendering average row at index:', index, team)
+              // Debug logging for comparison rows
+              if (isComparison) {
+                console.log('🟡 [PositionsTable] Rendering comparison row at index:', index, team.comparisonType, team)
               }
 
-              // Special styling for average row
-              const rowClass = isAverage
-                ? 'bg-amber-50 dark:bg-amber-900/20 border-y-2 border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors'
-                : 'hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors'
+              // Special styling for comparison rows based on type
+              let rowClass = 'hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors'
+              if (isComparison && team.comparisonType) {
+                rowClass = `comparison-row-${team.comparisonType} hover:opacity-90 transition-all`
+              }
 
               return (
                 <tr
@@ -545,8 +561,8 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
                   className={rowClass}
                 >
                   <td className="px-3 py-2 text-center text-sm border-r border-gray-200 dark:border-gray-700 min-w-24">
-                    {isAverage ? (
-                      <span className="inline-flex items-center justify-center text-amber-700 dark:text-amber-300 font-medium">
+                    {isComparison ? (
+                      <span className="inline-flex items-center justify-center font-medium">
                         ---
                       </span>
                     ) : (
@@ -556,33 +572,41 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
                     )}
                   </td>
 
-                  <td className={`px-3 py-2 text-sm border-r border-gray-200 dark:border-gray-700 min-w-48 ${isAverage ? 'font-bold text-amber-900 dark:text-amber-200' : 'font-medium text-gray-900 dark:text-white'}`}>
-                    {isAverage ? (
+                  <td className={`px-3 py-2 text-sm border-r border-gray-200 dark:border-gray-700 min-w-48 ${isComparison ? 'font-bold' : 'font-medium text-gray-900 dark:text-white'}`}>
+                    {isComparison ? (
                       <span className="inline-flex items-center">
                         <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                         </svg>
-                        League Average
+                        {team.teamName}
                       </span>
                     ) : (
                       formatTeamDisplay(team as any, { includeYear: hasMultipleYears })
                     )}
                   </td>
 
-                  <td className={`px-3 py-2 text-sm border-r border-gray-200 dark:border-gray-700 min-w-36 ${isAverage ? 'text-amber-700 dark:text-amber-300 font-medium' : 'text-gray-900 dark:text-white'}`}>
+                  <td className={`px-3 py-2 text-sm border-r border-gray-200 dark:border-gray-700 min-w-36 ${isComparison ? 'font-medium' : 'text-gray-900 dark:text-white'}`}>
                     {team.manager}
                   </td>
 
                   {positionsToShow.map(position => {
-                    if (isAverage) {
-                      // For average row, show the average points with special styling
-                      const avgPoints = team.positionTotals[position]
-                      const avgRank = (positionalData.teams.length + 1) / 2
+                    if (isComparison) {
+                      // For comparison rows, show the comparison points with special styling
+                      const comparisonPoints = team.positionTotals[position]
+                      const comparisonRank = (positionalData.teams.length + 1) / 2
+
+                      // Dynamic colors based on comparison type
+                      let badgeClass = 'bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100'
+                      if (team.comparisonType === 'median') {
+                        badgeClass = 'bg-purple-200 text-purple-900 dark:bg-purple-800 dark:text-purple-100'
+                      } else if (team.comparisonType === 'trimmedMean') {
+                        badgeClass = 'bg-teal-200 text-teal-900 dark:bg-teal-800 dark:text-teal-100'
+                      }
 
                       return (
                         <td key={position} className="px-3 py-2 text-center text-sm border-r border-gray-200 dark:border-gray-700">
-                          <span className="inline-flex items-center justify-center px-2 py-1 rounded text-xs font-bold bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100">
-                            {formatPositionDisplay(avgRank, avgPoints)}
+                          <span className={`inline-flex items-center justify-center px-2 py-1 rounded text-xs font-bold ${badgeClass}`}>
+                            {formatPositionDisplay(comparisonRank, comparisonPoints)}
                           </span>
                         </td>
                       )
@@ -611,9 +635,26 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
                   })}
 
                   <td className="px-3 py-2 text-center text-sm">
-                    <span className={`inline-flex items-center justify-center px-2 py-1 rounded text-xs font-medium ${isAverage ? 'bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100 font-bold' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'}`}>
-                      {formatDecimal(avgRankData.avgRank)}
-                    </span>
+                    {isComparison ? (
+                      (() => {
+                        // Dynamic colors for avg rank cell based on comparison type
+                        let badgeClass = 'bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100'
+                        if (team.comparisonType === 'median') {
+                          badgeClass = 'bg-purple-200 text-purple-900 dark:bg-purple-800 dark:text-purple-100'
+                        } else if (team.comparisonType === 'trimmedMean') {
+                          badgeClass = 'bg-teal-200 text-teal-900 dark:bg-teal-800 dark:text-teal-100'
+                        }
+                        return (
+                          <span className={`inline-flex items-center justify-center px-2 py-1 rounded text-xs font-medium ${badgeClass} font-bold`}>
+                            {formatDecimal(avgRankData.avgRank)}
+                          </span>
+                        )
+                      })()
+                    ) : (
+                      <span className="inline-flex items-center justify-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                        {formatDecimal(avgRankData.avgRank)}
+                      </span>
+                    )}
                   </td>
                 </tr>
               )
