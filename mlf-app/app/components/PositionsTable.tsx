@@ -525,6 +525,7 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
 
       {/* Conditional View Rendering */}
       {activeView === 'rankings' && (
+      <>
       <div className="overflow-x-auto w-full min-w-[1200px]">
         <table className="w-full border border-gray-200 dark:border-gray-700">
           <thead>
@@ -727,6 +728,8 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
           onClose={() => setSelectedTooltip(null)}
           anchorElement={selectedTooltip.anchorElement}
         />
+      )}
+      </>
       )}
 
       {/* Points Behind View */}

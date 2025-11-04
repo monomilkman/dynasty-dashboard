@@ -31,14 +31,14 @@ export default function TeamWeaknessAnalyzer({ positionalData, statFilter }: Tea
     if (statFilter === 'offense') {
       return {
         ...teamAnalysis,
-        weaknesses: teamAnalysis.weaknesses.filter(w => offensivePositions.includes(w.position)),
-        strengths: teamAnalysis.strengths.filter(s => offensivePositions.includes(s.position))
+        weakestPositions: teamAnalysis.weakestPositions.filter(w => offensivePositions.includes(w.position)),
+        strongestPositions: teamAnalysis.strongestPositions.filter(s => offensivePositions.includes(s.position))
       }
     } else if (statFilter === 'defense') {
       return {
         ...teamAnalysis,
-        weaknesses: teamAnalysis.weaknesses.filter(w => defensivePositions.includes(w.position)),
-        strengths: teamAnalysis.strengths.filter(s => defensivePositions.includes(s.position))
+        weakestPositions: teamAnalysis.weakestPositions.filter(w => defensivePositions.includes(w.position)),
+        strongestPositions: teamAnalysis.strongestPositions.filter(s => defensivePositions.includes(s.position))
       }
     }
 
@@ -57,15 +57,15 @@ export default function TeamWeaknessAnalyzer({ positionalData, statFilter }: Tea
       `Manager: ${filteredAnalysis.manager}`,
       ``,
       `OVERALL PERFORMANCE`,
-      `Average Rank: ${filteredAnalysis.avgRank.toFixed(1)}`,
-      `Average Percentile: ${filteredAnalysis.avgPercentile.toFixed(1)}%`,
-      `Total Points Behind Leaders: ${formatDecimal(filteredAnalysis.totalGapFromFirst)}`,
+      `Average Rank: ${filteredAnalysis.averageRank.toFixed(1)}`,
+      `Average Percentile: ${filteredAnalysis.averagePercentile.toFixed(1)}%`,
+      `Total Points Behind Leaders: ${formatDecimal(filteredAnalysis.totalGapFromLeaders)}`,
       ``,
       `TOP 3 WEAKNESSES`,
       `${'='.repeat(50)}`,
     ]
 
-    filteredAnalysis.weaknesses.forEach((weakness, index) => {
+    filteredAnalysis.weakestPositions.forEach((weakness, index) => {
       lines.push(
         ``,
         `${index + 1}. ${weakness.position} (Rank ${weakness.rank}, ${weakness.percentile.toFixed(1)}th percentile)`,
@@ -73,7 +73,7 @@ export default function TeamWeaknessAnalyzer({ positionalData, statFilter }: Tea
         `   Gap from 1st: ${formatDecimal(weakness.gapFromFirst)} points`,
         `   Gap from Average: ${formatDecimal(weakness.gapFromAvg)} points`,
         `   Impact Score: ${weakness.impactScore.toFixed(2)}`,
-        `   Recommendation: ${weakness.recommendation}`
+        `   Recommendation: ${weakness.analysis}`
       )
     })
 
@@ -83,13 +83,13 @@ export default function TeamWeaknessAnalyzer({ positionalData, statFilter }: Tea
       `${'='.repeat(50)}`,
     )
 
-    filteredAnalysis.strengths.forEach((strength, index) => {
+    filteredAnalysis.strongestPositions.forEach((strength, index) => {
       lines.push(
         ``,
         `${index + 1}. ${strength.position} (Rank ${strength.rank}, ${strength.percentile.toFixed(1)}th percentile)`,
         `   Points: ${formatDecimal(strength.points)}`,
         `   Gap from 1st: ${formatDecimal(strength.gapFromFirst)} points`,
-        `   Potential Trade Asset: ${strength.recommendation}`
+        `   Potential Trade Asset: ${strength.analysis}`
       )
     })
 
@@ -97,7 +97,7 @@ export default function TeamWeaknessAnalyzer({ positionalData, statFilter }: Tea
       ``,
       `RECOMMENDATIONS`,
       `${'='.repeat(50)}`,
-      filteredAnalysis.overallRecommendation
+      filteredAnalysis.tradeRecommendations.map(rec => `${rec.position}: ${rec.action} (Priority: ${rec.priority})`).join('\n')
     )
 
     const text = lines.join('\n')
@@ -121,15 +121,15 @@ export default function TeamWeaknessAnalyzer({ positionalData, statFilter }: Tea
       ['Generated', new Date().toLocaleString()],
       [],
       ['OVERALL METRICS'],
-      ['Average Rank', filteredAnalysis.avgRank.toFixed(1)],
-      ['Average Percentile', filteredAnalysis.avgPercentile.toFixed(1) + '%'],
-      ['Total Gap from Leaders', formatDecimal(filteredAnalysis.totalGapFromFirst)],
+      ['Average Rank', filteredAnalysis.averageRank.toFixed(1)],
+      ['Average Percentile', filteredAnalysis.averagePercentile.toFixed(1) + '%'],
+      ['Total Gap from Leaders', formatDecimal(filteredAnalysis.totalGapFromLeaders)],
       [],
       ['WEAKNESSES'],
       ['Position', 'Rank', 'Percentile', 'Points', 'Gap from 1st', 'Gap from Avg', 'Impact Score', 'Recommendation']
     ]
 
-    filteredAnalysis.weaknesses.forEach(w => {
+    filteredAnalysis.weakestPositions.forEach(w => {
       rows.push([
         w.position,
         w.rank.toString(),
@@ -138,7 +138,7 @@ export default function TeamWeaknessAnalyzer({ positionalData, statFilter }: Tea
         formatDecimal(w.gapFromFirst),
         formatDecimal(w.gapFromAvg),
         w.impactScore.toFixed(2),
-        w.recommendation
+        w.analysis
       ])
     })
 
@@ -146,14 +146,14 @@ export default function TeamWeaknessAnalyzer({ positionalData, statFilter }: Tea
     rows.push(['STRENGTHS'])
     rows.push(['Position', 'Rank', 'Percentile', 'Points', 'Gap from 1st', 'Recommendation'])
 
-    filteredAnalysis.strengths.forEach(s => {
+    filteredAnalysis.strongestPositions.forEach(s => {
       rows.push([
         s.position,
         s.rank.toString(),
         s.percentile.toFixed(1) + '%',
         formatDecimal(s.points),
         formatDecimal(s.gapFromFirst),
-        s.recommendation
+        s.analysis
       ])
     })
 
@@ -246,19 +246,19 @@ export default function TeamWeaknessAnalyzer({ positionalData, statFilter }: Tea
               <div className="bg-white dark:bg-gray-800 rounded-lg p-3 text-center">
                 <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-1">Avg Rank</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {filteredAnalysis.avgRank.toFixed(1)}
+                  {filteredAnalysis.averageRank.toFixed(1)}
                 </p>
               </div>
               <div className="bg-white dark:bg-gray-800 rounded-lg p-3 text-center">
                 <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-1">Avg Percentile</p>
                 <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-                  {filteredAnalysis.avgPercentile.toFixed(1)}%
+                  {filteredAnalysis.averagePercentile.toFixed(1)}%
                 </p>
               </div>
               <div className="bg-white dark:bg-gray-800 rounded-lg p-3 text-center">
                 <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-1">Total Gap</p>
                 <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                  {formatDecimal(filteredAnalysis.totalGapFromFirst)}
+                  {formatDecimal(filteredAnalysis.totalGapFromLeaders)}
                 </p>
               </div>
             </div>
@@ -271,7 +271,7 @@ export default function TeamWeaknessAnalyzer({ positionalData, statFilter }: Tea
               Top 3 Weaknesses
             </h4>
             <div className="space-y-3">
-              {filteredAnalysis.weaknesses.map((weakness, index) => (
+              {filteredAnalysis.weakestPositions.map((weakness, index) => (
                 <div
                   key={weakness.position}
                   className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-lg p-4"
@@ -311,7 +311,7 @@ export default function TeamWeaknessAnalyzer({ positionalData, statFilter }: Tea
                   </div>
                   <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
                     <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">RECOMMENDATION</p>
-                    <p className="text-sm text-gray-900 dark:text-white">{weakness.recommendation}</p>
+                    <p className="text-sm text-gray-900 dark:text-white">{weakness.analysis}</p>
                   </div>
                 </div>
               ))}
@@ -325,7 +325,7 @@ export default function TeamWeaknessAnalyzer({ positionalData, statFilter }: Tea
               Top 3 Strengths
             </h4>
             <div className="space-y-3">
-              {filteredAnalysis.strengths.map((strength, index) => (
+              {filteredAnalysis.strongestPositions.map((strength, index) => (
                 <div
                   key={strength.position}
                   className="bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800 rounded-lg p-4"
@@ -363,7 +363,7 @@ export default function TeamWeaknessAnalyzer({ positionalData, statFilter }: Tea
                   </div>
                   <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
                     <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">TRADE POTENTIAL</p>
-                    <p className="text-sm text-gray-900 dark:text-white">{strength.recommendation}</p>
+                    <p className="text-sm text-gray-900 dark:text-white">{strength.analysis}</p>
                   </div>
                 </div>
               ))}
@@ -374,11 +374,15 @@ export default function TeamWeaknessAnalyzer({ positionalData, statFilter }: Tea
           <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 border-2 border-indigo-300 dark:border-indigo-700 rounded-lg p-4">
             <h4 className="text-lg font-semibold text-indigo-900 dark:text-indigo-200 mb-2 flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" />
-              Overall Strategy Recommendation
+              Trade Recommendations
             </h4>
-            <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed">
-              {filteredAnalysis.overallRecommendation}
-            </p>
+            <div className="space-y-2">
+              {filteredAnalysis.tradeRecommendations.map((rec, idx) => (
+                <p key={idx} className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed">
+                  <strong>{rec.position}:</strong> {rec.action} (Priority: {rec.priority})
+                </p>
+              ))}
+            </div>
           </div>
         </div>
       )}
