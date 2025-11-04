@@ -192,33 +192,102 @@ export function analyzeTeamPositions(
 }
 
 /**
+ * Calculate league-wide average points for each position
+ */
+export function calculateLeagueAverages(leagueData: LeaguePositionalData): PositionTotals {
+  const positions: PositionKey[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DL', 'LB', 'CB', 'S', 'O-Flex', 'D-Flex']
+  const averages: PositionTotals = {
+    QB: 0, RB: 0, WR: 0, TE: 0, K: 0,
+    DL: 0, LB: 0, CB: 0, S: 0,
+    'O-Flex': 0, 'D-Flex': 0
+  }
+
+  const teamCount = leagueData.teams.length
+  if (teamCount === 0) return averages
+
+  positions.forEach(position => {
+    const totalPoints = leagueData.teams.reduce((sum, team) => {
+      return sum + (team.positionTotals[position] || 0)
+    }, 0)
+    averages[position] = totalPoints / teamCount
+  })
+
+  return averages
+}
+
+/**
+ * Create a special TeamPositionalData object representing league averages
+ */
+export function createAverageRowData(leagueData: LeaguePositionalData): TeamPositionalData & { avgRank: number, isAverageRow: boolean } {
+  const averages = calculateLeagueAverages(leagueData)
+  const teamCount = leagueData.teams.length
+
+  // Calculate the "average rank" - should be exactly in the middle
+  const averageRank = (teamCount + 1) / 2
+
+  return {
+    franchiseId: 'LEAGUE_AVG',
+    teamName: 'League Average',
+    manager: '---',
+    year: leagueData.leagueSettings.year,
+    players: [],
+    positionTotals: averages,
+    weeklyLineups: [],
+    avgRank: averageRank,
+    isAverageRow: true
+  }
+}
+
+/**
  * Export utility functions for CSV/JSON export
  */
-export function preparePositionExportData(leagueData: LeaguePositionalData) {
+export function preparePositionExportData(leagueData: LeaguePositionalData, includeAverage = true) {
   const positions: PositionKey[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DL', 'LB', 'CB', 'S', 'O-Flex', 'D-Flex']
-  
-  return leagueData.teams.map(team => {
+
+  const exportData = leagueData.teams.map(team => {
     const teamData: any = {
       Team: team.teamName,
       Manager: team.manager,
       Year: team.year
     }
-    
+
     // Add position data
     positions.forEach(position => {
       const positionRanking = leagueData.positionRankings[position]
       const teamRanking = positionRanking?.find(r => r.franchiseId === team.franchiseId)
-      
+
       if (teamRanking) {
         teamData[`${getPositionAbbreviation(position)} Rank`] = teamRanking.rank
         teamData[`${getPositionAbbreviation(position)} Points`] = teamRanking.points.toFixed(2)
       }
     })
-    
+
     // Add average ranking
     const avgRank = calculateAverageRanking(team, leagueData).avgRank
     teamData['Average Rank'] = avgRank.toFixed(1)
-    
+
     return teamData
   })
+
+  // Add league average row if requested
+  if (includeAverage) {
+    const averages = calculateLeagueAverages(leagueData)
+    const averageRow: any = {
+      Team: 'League Average',
+      Manager: '---',
+      Year: leagueData.leagueSettings.year
+    }
+
+    positions.forEach(position => {
+      const avgPoints = averages[position]
+      averageRow[`${getPositionAbbreviation(position)} Rank`] = ((leagueData.teams.length + 1) / 2).toFixed(1)
+      averageRow[`${getPositionAbbreviation(position)} Points`] = avgPoints.toFixed(2)
+    })
+
+    averageRow['Average Rank'] = ((leagueData.teams.length + 1) / 2).toFixed(1)
+
+    exportData.push(averageRow)
+  }
+
+  return exportData
 }
