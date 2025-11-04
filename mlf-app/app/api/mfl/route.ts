@@ -731,7 +731,7 @@ export async function GET(request: NextRequest) {
             benchPoints,
             offensePoints,
             defensePoints,
-            totalPoints: startersPoints + benchPoints, // Total = starters + bench (diverges from MFL)
+            totalPoints: startersPoints, // Total = starters (matches MFL API spec)
             // Only include calculated potential points if MFL doesn't provide them
             ...(calculatedPotentialPoints > 0 && { potentialPoints: calculatedPotentialPoints }),
             qbPoints: positionTotals.QB,

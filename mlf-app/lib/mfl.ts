@@ -364,7 +364,7 @@ export async function normalizeTeamData(mflData: MFLStandingsResponse, year: num
         benchPoints = (detailedData.benchPoints as number) || 0
         offensePoints = (detailedData.offensePoints as number) || 0
         defensePoints = (detailedData.defensePoints as number) || 0
-        totalPoints = startersPoints + benchPoints  // Total = starters + bench (diverges from MFL)
+        totalPoints = startersPoints  // Total = starters (matches MFL API spec)
         potentialPoints = (detailedData.potentialPoints as number) || 0
 
         console.log(`Using detailed calculated data for ${franchiseId}: Total=${totalPoints}, Starters=${startersPoints}, Potential=${potentialPoints}`)
@@ -375,7 +375,7 @@ export async function normalizeTeamData(mflData: MFLStandingsResponse, year: num
         benchPoints = 0
         offensePoints = mflTotalPoints * 0.7  // Estimate
         defensePoints = mflTotalPoints * 0.3  // Estimate
-        totalPoints = startersPoints + benchPoints  // Total = starters + bench (will equal mflTotalPoints when benchPoints=0)
+        totalPoints = startersPoints  // Total = starters (matches MFL API spec)
         potentialPoints = parseFloat((f.pp as string) || (f.maxpf as string) || '0') || 0
 
         console.log(`Using MFL season totals for ${franchiseId}: Total=${totalPoints}, Potential=${potentialPoints}`)
@@ -430,7 +430,7 @@ export async function normalizeTeamData(mflData: MFLStandingsResponse, year: num
         wins: parseFloat((f.h2hw as string) || '0') || 0,           // MFL's h2hw
         losses: parseFloat((f.h2hl as string) || '0') || 0,         // MFL's h2hl
         ties: parseFloat((f.h2ht as string) || '0') || 0,           // MFL's h2ht
-        pointsFor: totalPoints,                                     // MFL's pf
+        pointsFor: startersPoints,                                  // Use starter points for H2H matchups
         pointsAgainst,                                              // MFL's pa
         winPercentage: parseFloat((f.h2hpct as string) || '0') || 0 // MFL's h2hpct
       }
