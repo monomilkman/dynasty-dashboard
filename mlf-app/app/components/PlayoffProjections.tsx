@@ -337,30 +337,36 @@ export default function PlayoffProjections({ year }: PlayoffProjectionsProps) {
   }
 
   // Get status color class
-  const getStatusColor = (probability: number): string => {
+  const getStatusColor = (probability: number, isEliminated?: boolean): string => {
+    if (isEliminated) return 'text-gray-500 dark:text-gray-500'
     if (probability >= 99) return 'text-green-600 dark:text-green-400 font-bold'
     if (probability >= 80) return 'text-green-500 dark:text-green-500'
     if (probability >= 50) return 'text-yellow-500 dark:text-yellow-400'
     if (probability >= 20) return 'text-orange-500 dark:text-orange-400'
     if (probability >= 5) return 'text-red-500 dark:text-red-400'
+    if (probability >= 1) return 'text-orange-600 dark:text-orange-400'
     return 'text-gray-500 dark:text-gray-500'
   }
 
-  const getStatusBgColor = (probability: number): string => {
+  const getStatusBgColor = (probability: number, isEliminated?: boolean): string => {
+    if (isEliminated) return 'bg-gray-50 dark:bg-gray-900/20'
     if (probability >= 99) return 'bg-green-100 dark:bg-green-900/30'
     if (probability >= 80) return 'bg-green-50 dark:bg-green-900/20'
     if (probability >= 50) return 'bg-yellow-50 dark:bg-yellow-900/20'
     if (probability >= 20) return 'bg-orange-50 dark:bg-orange-900/20'
     if (probability >= 5) return 'bg-red-50 dark:bg-red-900/20'
+    if (probability >= 1) return 'bg-orange-50 dark:bg-orange-900/10'
     return 'bg-gray-50 dark:bg-gray-900/20'
   }
 
-  const getStatusLabel = (probability: number): string => {
+  const getStatusLabel = (probability: number, isEliminated?: boolean): string => {
+    if (isEliminated) return 'Eliminated'
     if (probability >= 99) return 'Clinched'
     if (probability >= 80) return 'Very Likely'
     if (probability >= 50) return 'Likely'
     if (probability >= 20) return 'Possible'
     if (probability >= 5) return 'Unlikely'
+    if (probability >= 1) return 'Long Shot'
     return 'Eliminated'
   }
 
@@ -491,7 +497,7 @@ export default function PlayoffProjections({ year }: PlayoffProjectionsProps) {
                 return (
                   <tr
                     key={team.franchiseId}
-                    className={`${getStatusBgColor(team.playoffProbability)} hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors`}
+                    className={`${getStatusBgColor(team.playoffProbability, prob?.isEliminated)} hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors`}
                     onClick={() => setSelectedTeam(team.franchiseId)}
                   >
                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
@@ -503,7 +509,7 @@ export default function PlayoffProjections({ year }: PlayoffProjectionsProps) {
                       )}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
+                      <div className="flex items-center gap-2">
                         <div>
                           <div className="text-sm font-medium text-gray-900 dark:text-white">
                             {franchise?.name || team.franchiseId}
@@ -512,11 +518,25 @@ export default function PlayoffProjections({ year }: PlayoffProjectionsProps) {
                             {franchise?.owner_name}
                           </div>
                         </div>
-                        {isDivisionLeader && (
-                          <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 rounded">
-                            DIV
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1">
+                          {isDivisionLeader && (
+                            <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 rounded">
+                              DIV
+                            </span>
+                          )}
+                          {/* Clinched Badge */}
+                          {prob && prob.playoffProbability >= 99 && !prob.isEliminated && (
+                            <span className="px-2 py-0.5 text-xs font-bold bg-green-500 text-white rounded animate-pulse flex items-center gap-1">
+                              🎉 CLINCHED
+                            </span>
+                          )}
+                          {/* Eliminated Badge */}
+                          {prob?.isEliminated && (
+                            <span className="px-2 py-0.5 text-xs font-bold bg-gray-400 dark:bg-gray-600 text-white rounded line-through">
+                              ❌ ELIMINATED
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
@@ -534,10 +554,10 @@ export default function PlayoffProjections({ year }: PlayoffProjectionsProps) {
                     <td className="px-4 py-4 whitespace-nowrap text-center">
                       <div className="flex flex-col items-center">
                         <div className="flex items-center gap-1">
-                          <span className={`text-lg font-bold ${getStatusColor(team.playoffProbability)}`}>
-                            {team.playoffProbability.toFixed(1)}%
+                          <span className={`text-lg font-bold ${getStatusColor(team.playoffProbability, prob?.isEliminated)}`}>
+                            {prob?.isEliminated ? '0.0' : team.playoffProbability.toFixed(1)}%
                           </span>
-                          {probabilityChanges[team.franchiseId] !== undefined && (
+                          {probabilityChanges[team.franchiseId] !== undefined && !prob?.isEliminated && (
                             <span className={`text-xs ${
                               (probabilityChanges[team.franchiseId] || 0) > 0
                                 ? 'text-green-600 dark:text-green-400'
@@ -549,7 +569,7 @@ export default function PlayoffProjections({ year }: PlayoffProjectionsProps) {
                             </span>
                           )}
                         </div>
-                        {prob && prob.averageSeed > 0 && (
+                        {prob && prob.averageSeed > 0 && !prob.isEliminated && (
                           <span className="text-xs text-gray-500 dark:text-gray-400">
                             Avg Seed: {prob.averageSeed.toFixed(1)}
                           </span>
@@ -557,8 +577,8 @@ export default function PlayoffProjections({ year }: PlayoffProjectionsProps) {
                       </div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-center">
-                      <span className={`px-2 py-1 text-xs font-medium rounded ${getStatusColor(team.playoffProbability)}`}>
-                        {getStatusLabel(team.playoffProbability)}
+                      <span className={`px-2 py-1 text-xs font-medium rounded ${getStatusColor(team.playoffProbability, prob?.isEliminated)}`}>
+                        {getStatusLabel(team.playoffProbability, prob?.isEliminated)}
                       </span>
                     </td>
                   </tr>
@@ -606,6 +626,8 @@ export default function PlayoffProjections({ year }: PlayoffProjectionsProps) {
           schedule={schedules.find(s => s.franchiseId === selectedTeam)!}
           currentWeek={currentWeek}
           year={year}
+          allStandings={standings}
+          allSchedules={schedules}
         />
       )}
     </div>

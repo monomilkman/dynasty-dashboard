@@ -25,6 +25,9 @@ export interface PlayoffProbabilities {
   eliminationNumber: number // Games needed for elimination
   magicNumber: number // Games needed to clinch (0 if clinched)
   clinchScenarios: string[] // Human-readable clinching scenarios
+  isEliminated: boolean // Deterministic mathematical elimination check
+  eliminationReason?: string // Human-readable explanation of why eliminated
+  eliminationDetails?: string[] // Detailed breakdown of elimination factors
 }
 
 export interface SimulationResult {
@@ -191,6 +194,165 @@ function runSingleSimulation(
 }
 
 /**
+ * Deterministically check if a team is mathematically eliminated from playoffs
+ * Returns elimination status with detailed reasoning
+ */
+export function isTeamMathematicallyEliminated(
+  franchiseId: string,
+  standings: StandingsFranchise[],
+  schedules: TeamSchedule[],
+  divisionsData: DivisionsData
+): { isEliminated: boolean; reason: string; details: string[] } {
+  const team = standings.find(s => s.id === franchiseId)
+  if (!team) {
+    return {
+      isEliminated: true,
+      reason: 'Team not found',
+      details: []
+    }
+  }
+
+  const currentWins = parseInt(team.h2hw) || 0
+  const currentLosses = parseInt(team.h2hl) || 0
+  const currentTies = parseInt(team.h2ht) || 0
+  const teamSchedule = schedules.find(s => s.franchiseId === franchiseId)
+  const remainingGames = teamSchedule?.remainingGames.length || 0
+  const maxPossibleWins = currentWins + remainingGames
+  const currentPointsFor = parseFloat(team.pf) || 0
+  const avgPointsPerGame = parseFloat(team.avgpf) || 0
+  const maxPossiblePointsFor = currentPointsFor + (avgPointsPerGame * remainingGames)
+
+  const details: string[] = []
+  details.push(`Current record: ${currentWins}-${currentLosses}${currentTies > 0 ? `-${currentTies}` : ''}`)
+  details.push(`Best possible record: ${maxPossibleWins}-${currentLosses}${currentTies > 0 ? `-${currentTies}` : ''}`)
+  details.push(`Remaining games: ${remainingGames}`)
+
+  // Get team's division
+  const teamDivision = divisionsData.divisionMap[franchiseId]
+  const divisionName = divisionsData.divisionNames[teamDivision] || 'Unknown Division'
+
+  // Check 1: Can they win their division?
+  const divisionTeams = standings.filter(s =>
+    divisionsData.divisionMap[s.id] === teamDivision && s.id !== franchiseId
+  )
+
+  let canWinDivision = true
+  const divisionLeader = divisionTeams.reduce((best, current) => {
+    const bestWins = parseInt(best.h2hw) || 0
+    const currentWins = parseInt(current.h2hw) || 0
+    return currentWins > bestWins ? current : best
+  }, divisionTeams[0])
+
+  if (divisionLeader) {
+    const leaderWins = parseInt(divisionLeader.h2hw) || 0
+    const leaderLosses = parseInt(divisionLeader.h2hl) || 0
+    const leaderSchedule = schedules.find(s => s.franchiseId === divisionLeader.id)
+    const leaderMaxWins = leaderWins + (leaderSchedule?.remainingGames.length || 0)
+
+    if (maxPossibleWins < leaderWins) {
+      canWinDivision = false
+      details.push(`Cannot catch division leader (${leaderWins} wins) - need ${leaderWins - maxPossibleWins + 1} more wins than possible`)
+    } else if (maxPossibleWins === leaderWins) {
+      const leaderPF = parseFloat(divisionLeader.pf) || 0
+      const leaderAvgPF = parseFloat(divisionLeader.avgpf) || 0
+      const leaderMaxPF = leaderPF + (leaderAvgPF * (leaderSchedule?.remainingGames.length || 0))
+
+      if (maxPossiblePointsFor < leaderPF) {
+        canWinDivision = false
+        details.push(`Tied in max wins with division leader, but lose tiebreaker (points for: ${maxPossiblePointsFor.toFixed(1)} vs ${leaderPF.toFixed(1)})`)
+      }
+    }
+  }
+
+  // Check 2: Can they get a wildcard spot?
+  // Build list of all teams sorted by max possible wins
+  const allTeamsMaxWins = standings.map(s => {
+    const wins = parseInt(s.h2hw) || 0
+    const schedule = schedules.find(sch => sch.franchiseId === s.id)
+    const remaining = schedule?.remainingGames.length || 0
+    const maxWins = wins + remaining
+    const pf = parseFloat(s.pf) || 0
+    const avgpf = parseFloat(s.avgpf) || 0
+    const maxPF = pf + (avgpf * remaining)
+    const division = divisionsData.divisionMap[s.id]
+
+    return {
+      franchiseId: s.id,
+      currentWins: wins,
+      maxWins,
+      maxPF,
+      division,
+      name: s.name || s.id
+    }
+  }).sort((a, b) => {
+    if (a.maxWins !== b.maxWins) return b.maxWins - a.maxWins
+    return b.maxPF - a.maxPF
+  })
+
+  // Determine division leaders (best team from each division by max wins)
+  const divisionLeaders: string[] = []
+  const divisionsSeen = new Set<string>()
+
+  for (const divId of Object.keys(divisionsData.divisionNames)) {
+    const divTeams = allTeamsMaxWins.filter(t => t.division === divId)
+    if (divTeams.length > 0) {
+      divisionLeaders.push(divTeams[0].franchiseId)
+      divisionsSeen.add(divId)
+    }
+  }
+
+  // Wildcard candidates are non-division-leaders
+  const wildcardCandidates = allTeamsMaxWins.filter(t => !divisionLeaders.includes(t.franchiseId))
+
+  // Find where the target team ranks in wildcard race
+  const teamWildcardRank = wildcardCandidates.findIndex(t => t.franchiseId === franchiseId)
+
+  // Count how many teams will DEFINITELY finish ahead of us in wildcard
+  let teamsDefinitelyAhead = 0
+  for (let i = 0; i < wildcardCandidates.length; i++) {
+    const candidate = wildcardCandidates[i]
+    if (candidate.franchiseId === franchiseId) break
+
+    // They're definitely ahead if their CURRENT wins are higher than our MAX wins
+    if (candidate.currentWins > maxPossibleWins) {
+      teamsDefinitelyAhead++
+    } else if (candidate.currentWins === maxPossibleWins) {
+      // Check tiebreaker (points for)
+      const candidateCurrentPF = parseFloat(standings.find(s => s.id === candidate.franchiseId)?.pf || '0')
+      if (candidateCurrentPF > maxPossiblePointsFor) {
+        teamsDefinitelyAhead++
+      }
+    }
+  }
+
+  const canGetWildcard = teamsDefinitelyAhead < 3 // Need to be in top 3 wildcards
+
+  details.push(`Division path: ${canWinDivision ? 'Still possible' : 'Eliminated'}`)
+  details.push(`Wildcard path: ${canGetWildcard ? 'Still possible' : 'Eliminated'}`)
+  details.push(`Teams definitely ahead in wildcard: ${teamsDefinitelyAhead}`)
+
+  // Final verdict: Eliminated if BOTH paths are closed
+  const isEliminated = !canWinDivision && !canGetWildcard
+
+  let reason = ''
+  if (isEliminated) {
+    if (!canWinDivision && !canGetWildcard) {
+      reason = `Cannot win ${divisionName.replace(' Division', '')} (leader has ${divisionLeader ? parseInt(divisionLeader.h2hw) : 0}+ wins) and ${teamsDefinitelyAhead} wildcard teams have clinched ahead`
+    } else if (!canWinDivision) {
+      reason = `Cannot catch division leader`
+    } else {
+      reason = `Too many wildcard teams ahead`
+    }
+  }
+
+  return {
+    isEliminated,
+    reason,
+    details
+  }
+}
+
+/**
  * Run Monte Carlo simulation to calculate playoff probabilities
  */
 export function calculatePlayoffProbabilities(
@@ -264,6 +426,9 @@ export function calculatePlayoffProbabilities(
     const teamSchedule = schedules.find(s => s.franchiseId === team.id)
     const remainingGames = teamSchedule?.remainingGames.length || 0
 
+    // Run deterministic elimination check
+    const eliminationCheck = isTeamMathematicallyEliminated(team.id, standings, schedules, divisionsData)
+
     const magicNumber = calculateMagicNumber(team.id, standings, schedules, divisionsData, playoffProbability)
     const eliminationNumber = calculateEliminationNumber(team.id, standings, schedules, playoffProbability)
 
@@ -285,6 +450,9 @@ export function calculatePlayoffProbabilities(
       eliminationNumber,
       magicNumber,
       clinchScenarios,
+      isEliminated: eliminationCheck.isEliminated,
+      eliminationReason: eliminationCheck.reason,
+      eliminationDetails: eliminationCheck.details,
     }
   })
 
