@@ -5,20 +5,25 @@ import { Team } from '@/lib/mfl'
 import { ArrowUpDown, ArrowUp, ArrowDown, RefreshCw, Download } from 'lucide-react'
 import { formatTeamDisplay, getUniqueYears } from '@/lib/team-utils'
 import { formatDecimal } from '@/lib/utils'
-import { 
-  LeaguePositionalData, 
-  TeamPositionalData, 
-  PositionTotals 
+import {
+  LeaguePositionalData,
+  TeamPositionalData,
+  PositionTotals
 } from '@/lib/mfl-position-scraper'
-import { 
-  getPositionColorClass, 
-  calculatePositionRanking, 
-  calculateAverageRanking, 
-  formatPositionDisplay, 
+import {
+  getPositionColorClass,
+  calculatePositionRanking,
+  calculateAverageRanking,
+  formatPositionDisplay,
   sortTeamsByAverageRanking,
   preparePositionExportData,
-  PositionKey 
+  createAverageRowData,
+  calculateLeagueAverages,
+  PositionKey
 } from '@/lib/position-utils'
+
+// Extended type for rows that includes the average row
+type TableRow = (TeamPositionalData & { avgRank: number, isAverageRow: boolean })
 
 interface PositionsTableProps {
   teams: Team[]
@@ -109,21 +114,34 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
     return recordsMap
   }, [teams])
 
-  // Sort teams based on selected field
-  const sortedTeams = useMemo(() => {
+  // Sort teams based on selected field, including league average row
+  const sortedTeams = useMemo((): TableRow[] => {
     if (!positionalData) return []
 
-    const teamsWithAvgRank = positionalData.teams.map(team => ({
+    // Add avgRank to all teams
+    const teamsWithAvgRank: TableRow[] = positionalData.teams.map(team => ({
       ...team,
-      avgRank: calculateAverageRanking(team, positionalData).avgRank
+      avgRank: calculateAverageRanking(team, positionalData).avgRank,
+      isAverageRow: false
     }))
 
+    // Create and add the league average row
+    const averageRow: TableRow = createAverageRowData(positionalData)
+    console.log('🔍 [PositionsTable] Created average row:', averageRow)
+    const allRows: TableRow[] = [...teamsWithAvgRank, averageRow]
+    console.log(`🔍 [PositionsTable] Total rows (including average): ${allRows.length}`,
+      `Teams: ${teamsWithAvgRank.length}, Average rows: 1`)
+
     if (sortDirection && sortField) {
-      teamsWithAvgRank.sort((a, b) => {
+      allRows.sort((a, b) => {
         let aValue: number
         let bValue: number
 
         if (sortField === 'record') {
+          // Average row should always be in middle for record sort
+          if (a.isAverageRow) return 1
+          if (b.isAverageRow) return -1
+
           // Multi-level sort: wins (desc) -> losses (asc) -> points for (desc)
           const aRecord = teamRecordsMap.get(a.franchiseId) || { wins: 0, losses: 0, pointsFor: 0 }
           const bRecord = teamRecordsMap.get(b.franchiseId) || { wins: 0, losses: 0, pointsFor: 0 }
@@ -144,15 +162,23 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
           aValue = a.avgRank
           bValue = b.avgRank
         } else if (sortField === 'teamName') {
+          // Keep average row separate from alphabetical sort
+          if (a.isAverageRow) return sortDirection === 'asc' ? 1 : -1
+          if (b.isAverageRow) return sortDirection === 'asc' ? -1 : 1
+
           return sortDirection === 'asc'
             ? a.teamName.localeCompare(b.teamName)
             : b.teamName.localeCompare(a.teamName)
         } else if (sortField === 'manager') {
+          // Keep average row separate from alphabetical sort
+          if (a.isAverageRow) return sortDirection === 'asc' ? 1 : -1
+          if (b.isAverageRow) return sortDirection === 'asc' ? -1 : 1
+
           return sortDirection === 'asc'
             ? a.manager.localeCompare(b.manager)
             : b.manager.localeCompare(a.manager)
         } else {
-          // Position field
+          // Position field - average row participates in numeric sorting
           const positionKey = sortField as PositionKey
           aValue = a.positionTotals[positionKey] || 0
           bValue = b.positionTotals[positionKey] || 0
@@ -162,7 +188,7 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
       })
     }
 
-    return teamsWithAvgRank
+    return allRows
   }, [positionalData, sortField, sortDirection, teamRecordsMap])
 
   const handleSort = (field: string) => {
@@ -498,33 +524,73 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
           </thead>
           
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-            {sortedTeams.map((team, index) => {
-              const avgRankData = calculateAverageRanking(team, positionalData)
+            {sortedTeams.map((team: TableRow, index) => {
+              const isAverage = team.isAverageRow
+              const avgRankData = isAverage ? { avgRank: team.avgRank } : calculateAverageRanking(team, positionalData)
               const teamRecord = teamRecordsMap.get(team.franchiseId) || { wins: 0, losses: 0, ties: 0 }
+
+              // Debug logging for average row
+              if (isAverage) {
+                console.log('🟡 [PositionsTable] Rendering average row at index:', index, team)
+              }
+
+              // Special styling for average row
+              const rowClass = isAverage
+                ? 'bg-amber-50 dark:bg-amber-900/20 border-y-2 border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors'
+                : 'hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors'
 
               return (
                 <tr
                   key={`${team.franchiseId}-${team.year}`}
-                  className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  className={rowClass}
                 >
                   <td className="px-3 py-2 text-center text-sm border-r border-gray-200 dark:border-gray-700 min-w-24">
-                    <span className={getRecordStyle(teamRecord.wins, teamRecord.losses)}>
-                      {formatRecord(teamRecord.wins, teamRecord.losses, teamRecord.ties)}
-                    </span>
+                    {isAverage ? (
+                      <span className="inline-flex items-center justify-center text-amber-700 dark:text-amber-300 font-medium">
+                        ---
+                      </span>
+                    ) : (
+                      <span className={getRecordStyle(teamRecord.wins, teamRecord.losses)}>
+                        {formatRecord(teamRecord.wins, teamRecord.losses, teamRecord.ties)}
+                      </span>
+                    )}
                   </td>
 
-                  <td className="px-3 py-2 text-sm font-medium text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700 min-w-48">
-                    {formatTeamDisplay(team as any, { includeYear: hasMultipleYears })}
+                  <td className={`px-3 py-2 text-sm border-r border-gray-200 dark:border-gray-700 min-w-48 ${isAverage ? 'font-bold text-amber-900 dark:text-amber-200' : 'font-medium text-gray-900 dark:text-white'}`}>
+                    {isAverage ? (
+                      <span className="inline-flex items-center">
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                        League Average
+                      </span>
+                    ) : (
+                      formatTeamDisplay(team as any, { includeYear: hasMultipleYears })
+                    )}
                   </td>
-                  
-                  <td className="px-3 py-2 text-sm text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700 min-w-36">
+
+                  <td className={`px-3 py-2 text-sm border-r border-gray-200 dark:border-gray-700 min-w-36 ${isAverage ? 'text-amber-700 dark:text-amber-300 font-medium' : 'text-gray-900 dark:text-white'}`}>
                     {team.manager}
                   </td>
-                  
+
                   {positionsToShow.map(position => {
+                    if (isAverage) {
+                      // For average row, show the average points with special styling
+                      const avgPoints = team.positionTotals[position]
+                      const avgRank = (positionalData.teams.length + 1) / 2
+
+                      return (
+                        <td key={position} className="px-3 py-2 text-center text-sm border-r border-gray-200 dark:border-gray-700">
+                          <span className="inline-flex items-center justify-center px-2 py-1 rounded text-xs font-bold bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100">
+                            {formatPositionDisplay(avgRank, avgPoints)}
+                          </span>
+                        </td>
+                      )
+                    }
+
                     const positionRanking = positionalData.positionRankings[position]
                     const teamRanking = positionRanking?.find(r => r.franchiseId === team.franchiseId)
-                    
+
                     if (!teamRanking) {
                       return (
                         <td key={position} className="px-3 py-2 text-center text-sm border-r border-gray-200 dark:border-gray-700">
@@ -532,9 +598,9 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
                         </td>
                       )
                     }
-                    
+
                     const colorClass = getPositionColorClass(teamRanking.rank, positionalData.teams.length)
-                    
+
                     return (
                       <td key={position} className="px-3 py-2 text-center text-sm border-r border-gray-200 dark:border-gray-700">
                         <span className={`inline-flex items-center justify-center px-2 py-1 rounded text-xs font-medium ${colorClass}`}>
@@ -543,9 +609,9 @@ export default function PositionsTable({ teams, statFilter = 'all', selectedWeek
                       </td>
                     )
                   })}
-                  
+
                   <td className="px-3 py-2 text-center text-sm">
-                    <span className="inline-flex items-center justify-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                    <span className={`inline-flex items-center justify-center px-2 py-1 rounded text-xs font-medium ${isAverage ? 'bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100 font-bold' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'}`}>
                       {formatDecimal(avgRankData.avgRank)}
                     </span>
                   </td>
