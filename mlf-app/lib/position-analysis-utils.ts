@@ -11,6 +11,7 @@ export interface PositionGapData {
   position: PositionKey
   points: number
   rank: number
+  totalTeams: number
   gapFromFirst: number
   gapFromAvg: number
   gapFromMedian: number
@@ -129,6 +130,7 @@ export function calculatePositionGap(
     position,
     points: teamRanking.points,
     rank: teamRanking.rank,
+    totalTeams: positionRankings.length,
     gapFromFirst: teamRanking.points - firstPlace.points,
     gapFromAvg: teamRanking.points - avgPoints,
     gapFromMedian: teamRanking.points - medianPoints,

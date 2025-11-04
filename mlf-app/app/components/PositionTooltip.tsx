@@ -80,9 +80,7 @@ export default function PositionTooltip({ gapData, onClose, anchorElement }: Pos
     tooltipRef.current.style.left = `${left}px`
   }, [anchorElement])
 
-  const { position, rank, points, gapFromFirst, gapFromAvg, gapFromMedian, gapFromLast, percentile, firstPlaceTeam, firstPlacePoints, lastPlaceTeam, lastPlacePoints, topThreeTeams } = gapData
-
-  const totalTeams = Math.round(100 / percentile * (100 - percentile + 1)) // Approximate from percentile
+  const { position, rank, points, totalTeams, gapFromFirst, gapFromAvg, gapFromMedian, gapFromLast, percentile, firstPlaceTeam, firstPlacePoints, lastPlaceTeam, lastPlacePoints, topThreeTeams } = gapData
 
   // Determine trend icon
   const getTrendIcon = (gap: number) => {
